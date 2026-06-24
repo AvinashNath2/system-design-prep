@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Reddit Works — System Design HLD</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #222638;
+    --border: #2e3347;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --accent: #ff4500;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --purple: #a855f7;
+    --yellow: #eab308;
+    --teal: #14b8a6;
+    --red: #ef4444;
+    --orange: #f97316;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #0f1117 0%, #1a0a05 50%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 40px 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse, rgba(255,69,0,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(255,69,0,0.15);
+    border: 1px solid rgba(255,69,0,0.4);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 560px;
+    margin: 0 auto 28px;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── NAV ── */
+  .nav {
+    position: sticky;
+    top: 0;
+    background: rgba(15,17,23,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+    padding: 0 40px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 14px 16px;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .nav a:hover { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* ── CONTAINER ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 72px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .section-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 22px; font-weight: 800; color: #fff; }
+  .section-sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  /* ── ARCHITECTURE DIAGRAM ── */
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 32px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  .arch-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    margin: 4px 0;
+  }
+
+  .arch-box {
+    border-radius: 10px;
+    padding: 10px 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+    border: 1.5px solid;
+    min-width: 130px;
+  }
+  .arch-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .arch-box.active { outline: 2px solid #fff; outline-offset: 3px; }
+  .arch-box-title { font-size: 13px; font-weight: 700; color: #fff; }
+  .arch-box-sub { font-size: 10px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+
+  .box-blue   { background: rgba(59,130,246,0.12);  border-color: #3b82f6; }
+  .box-orange { background: rgba(249,115,22,0.12);  border-color: #f97316; }
+  .box-teal   { background: rgba(20,184,166,0.12);  border-color: #14b8a6; }
+  .box-green  { background: rgba(34,197,94,0.12);   border-color: #22c55e; }
+  .box-purple { background: rgba(168,85,247,0.12);  border-color: #a855f7; }
+  .box-yellow { background: rgba(234,179,8,0.12);   border-color: #eab308; }
+  .box-red    { background: rgba(239,68,68,0.12);   border-color: #ef4444; }
+
+  .arch-arrow {
+    font-size: 22px;
+    color: var(--muted);
+    margin: 2px 0;
+    user-select: none;
+  }
+  .arch-arrow-h { font-size: 16px; color: var(--muted); }
+
+  .layer-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-bottom: 6px;
+    align-self: flex-start;
+    margin-left: 0;
+  }
+
+  /* info card below diagram */
+  .component-info {
+    margin-top: 20px;
+    background: var(--bg3);
+    border-radius: 12px;
+    padding: 20px 24px;
+    border-left: 3px solid var(--blue);
+    transition: border-color 0.3s;
+    min-height: 80px;
+  }
+  .component-info h3 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .component-info p  { font-size: 14px; color: var(--muted); line-height: 1.7; }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+  .tag-why    { background: rgba(59,130,246,0.2);  color: #3b82f6; }
+  .tag-how    { background: rgba(34,197,94,0.2);   color: #22c55e; }
+  .tag-spof   { background: rgba(239,68,68,0.2);   color: #ef4444; }
+
+  /* ── Q&A SECTION ── */
+  .qa-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+  .qa-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .qa-question {
+    padding: 18px 22px;
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    user-select: none;
+    transition: background 0.2s;
+  }
+  .qa-question:hover { background: var(--bg3); }
+  .qa-question-text { display: flex; align-items: center; gap: 12px; }
+  .qa-icon { font-size: 20px; }
+  .qa-chevron { color: var(--muted); font-size: 14px; transition: transform 0.3s; flex-shrink: 0; }
+  .qa-card.open .qa-chevron { transform: rotate(180deg); }
+  .qa-answer {
+    display: none;
+    padding: 0 22px 22px;
+    border-top: 1px solid var(--border);
+  }
+  .qa-card.open .qa-answer { display: block; padding-top: 18px; }
+
+  /* ── FLOW DIAGRAM (sync/async) ── */
+  .flow-diagram {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-top: 16px;
+  }
+  .flow-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .flow-node {
+    background: var(--bg3);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .flow-node.highlight-green { border-color: var(--green);  background: rgba(34,197,94,0.1); }
+  .flow-node.highlight-blue  { border-color: var(--blue);   background: rgba(59,130,246,0.1); }
+  .flow-node.highlight-purple{ border-color: var(--purple); background: rgba(168,85,247,0.1); }
+  .flow-node.highlight-yellow{ border-color: var(--yellow); background: rgba(234,179,8,0.1); }
+  .flow-node.highlight-red   { border-color: var(--red);    background: rgba(239,68,68,0.1); }
+
+  .flow-arrow-line {
+    height: 2px;
+    width: 32px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flow-arrow-line::after {
+    content: '→';
+    font-size: 16px;
+    color: var(--muted);
+    position: absolute;
+  }
+  .flow-arrow-line.sync::after  { color: var(--blue); }
+  .flow-arrow-line.async::after { color: var(--yellow); }
+
+  .flow-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-left: 8px;
+    font-style: italic;
+  }
+
+  /* ── SPOF section ── */
+  .spof-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media(max-width: 640px) { .spof-grid { grid-template-columns: 1fr; } }
+
+  .spof-card {
+    background: var(--bg2);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .spof-card.bad  { border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.05); }
+  .spof-card.good { border-color: rgba(34,197,94,0.4);  background: rgba(34,197,94,0.05); }
+  .spof-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .spof-card p  { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+  .ascii-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #a5f3fc;
+    margin-top: 12px;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+
+  /* ── KAFKA SECTION ── */
+  .kafka-flow {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+  }
+
+  .kafka-broker {
+    background: rgba(234,179,8,0.08);
+    border: 2px solid var(--yellow);
+    border-radius: 12px;
+    padding: 16px 24px;
+    text-align: center;
+    margin: 16px auto;
+    max-width: 280px;
+  }
+  .kafka-broker h4 { color: var(--yellow); font-size: 15px; font-weight: 800; }
+  .kafka-broker p  { color: var(--muted);  font-size: 12px; margin-top: 4px; }
+
+  .kafka-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .kafka-producer {
+    background: rgba(34,197,94,0.1);
+    border: 1.5px solid var(--green);
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .kafka-consumer {
+    background: rgba(168,85,247,0.1);
+    border: 1.5px solid var(--purple);
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--purple);
+  }
+
+  .kafka-arrow-down {
+    text-align: center;
+    font-size: 20px;
+    color: var(--muted);
+    margin: 8px 0;
+  }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .compare-table th {
+    background: var(--bg3);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: var(--bg3); }
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .pill-blue   { background: rgba(59,130,246,0.2);  color: #3b82f6; }
+  .pill-yellow { background: rgba(234,179,8,0.2);   color: #eab308; }
+  .pill-green  { background: rgba(34,197,94,0.2);   color: #22c55e; }
+  .pill-red    { background: rgba(239,68,68,0.2);   color: #ef4444; }
+
+  /* ── FOOTER ── */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* ── UTILS ── */
+  .divider { height: 1px; background: var(--border); margin: 48px 0; }
+  .highlight { color: var(--accent); font-weight: 700; }
+  .text-muted { color: var(--muted); }
+  .mt-12 { margin-top: 12px; }
+  .mt-20 { margin-top: 20px; }
+
+  .tip-box {
+    background: rgba(255,69,0,0.07);
+    border: 1px solid rgba(255,69,0,0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .tip-box strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">System Design · HLD</div>
+  <h1>How <span>Reddit</span> Works</h1>
+  <p>High Level Design — with load balancer, API gateway, microservices communication, message queues, and SPOF explained.</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">18</div><div class="stat-label">Systems in Map</div></div>
+    <div class="stat"><div class="stat-num">100K</div><div class="stat-label">Assumed DAU</div></div>
+    <div class="stat"><div class="stat-num">30:1</div><div class="stat-label">Read/Write Ratio</div></div>
+    <div class="stat"><div class="stat-num">~6</div><div class="stat-label">Reads / sec</div></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="#architecture">Architecture</a>
+  <a href="#lb-vs-gateway">LB vs Gateway</a>
+  <a href="#spof">SPOF</a>
+  <a href="#communication">Communication</a>
+  <a href="#kafka">Message Queue</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<div class="container">
+
+  <!-- ── SECTION 1: Architecture ── -->
+  <div class="section" id="architecture">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(255,69,0,0.1);">🏗️</div>
+      <div>
+        <div class="section-title">High Level Architecture</div>
+        <div class="section-sub">Click any component to understand its role</div>
+      </div>
+    </div>
+
+    <div class="arch-diagram">
+
+      <div class="layer-tag">👤 Client Layer</div>
+      <div class="arch-row">
+        <div class="arch-box box-blue" onclick="showInfo('client')">
+          <div class="arch-box-title">📱 Client</div>
+          <div class="arch-box-sub">Web / Mobile App</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓</div>
+
+      <div class="layer-tag">🌐 Edge Layer</div>
+      <div class="arch-row">
+        <div class="arch-box box-orange" onclick="showInfo('lb')">
+          <div class="arch-box-title">⚖️ Load Balancer</div>
+          <div class="arch-box-sub">Distributes traffic</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓</div>
+
+      <div class="layer-tag">🚪 Gateway Layer</div>
+      <div class="arch-row">
+        <div class="arch-box box-teal" onclick="showInfo('gw1')" style="opacity:0.7;">
+          <div class="arch-box-title">🚪 API Gateway #1</div>
+          <div class="arch-box-sub">Auth · Rate Limit</div>
+        </div>
+        <div class="arch-arrow-h">  </div>
+        <div class="arch-box box-teal" onclick="showInfo('gw2')">
+          <div class="arch-box-title">🚪 API Gateway #2</div>
+          <div class="arch-box-sub">Auth · Rate Limit</div>
+        </div>
+        <div class="arch-arrow-h">  </div>
+        <div class="arch-box box-teal" onclick="showInfo('gw3')" style="opacity:0.7;">
+          <div class="arch-box-title">🚪 API Gateway #3</div>
+          <div class="arch-box-sub">Auth · Rate Limit</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓</div>
+
+      <div class="layer-tag">⚙️ Microservices Layer</div>
+      <div class="arch-row" style="flex-wrap:wrap; gap:10px;">
+        <div class="arch-box box-green" onclick="showInfo('feed')">
+          <div class="arch-box-title">📰 Feed Service</div>
+          <div class="arch-box-sub">Ranks posts</div>
+        </div>
+        <div class="arch-box box-green" onclick="showInfo('post')">
+          <div class="arch-box-title">📝 Post Service</div>
+          <div class="arch-box-sub">Create & fetch</div>
+        </div>
+        <div class="arch-box box-green" onclick="showInfo('vote')">
+          <div class="arch-box-title">👍 Vote Service</div>
+          <div class="arch-box-sub">Upvotes</div>
+        </div>
+        <div class="arch-box box-green" onclick="showInfo('search')">
+          <div class="arch-box-title">🔍 Search Service</div>
+          <div class="arch-box-sub">Full-text</div>
+        </div>
+        <div class="arch-box box-green" onclick="showInfo('notif')">
+          <div class="arch-box-title">🔔 Notification</div>
+          <div class="arch-box-sub">Alerts</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓</div>
+
+      <div class="layer-tag">⚡ Cache & Messaging</div>
+      <div class="arch-row">
+        <div class="arch-box box-purple" onclick="showInfo('redis')">
+          <div class="arch-box-title">⚡ Redis Cache</div>
+          <div class="arch-box-sub">Feed · Sessions</div>
+        </div>
+        <div style="width:24px"></div>
+        <div class="arch-box box-yellow" onclick="showInfo('kafka')">
+          <div class="arch-box-title">📨 Kafka Queue</div>
+          <div class="arch-box-sub">Async events</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓</div>
+
+      <div class="layer-tag">🗄️ Storage Layer</div>
+      <div class="arch-row" style="flex-wrap:wrap; gap:10px;">
+        <div class="arch-box box-red" onclick="showInfo('postgres')">
+          <div class="arch-box-title">🗄️ PostgreSQL</div>
+          <div class="arch-box-sub">Users · Posts</div>
+        </div>
+        <div class="arch-box box-red" onclick="showInfo('elastic')">
+          <div class="arch-box-title">🔎 Elasticsearch</div>
+          <div class="arch-box-sub">Search index</div>
+        </div>
+        <div class="arch-box box-red" onclick="showInfo('s3')">
+          <div class="arch-box-title">🪣 S3</div>
+          <div class="arch-box-sub">Images · Videos</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓</div>
+
+      <div class="layer-tag">🌍 CDN</div>
+      <div class="arch-row">
+        <div class="arch-box box-orange" onclick="showInfo('cdn')">
+          <div class="arch-box-title">🌐 CDN</div>
+          <div class="arch-box-sub">Static assets at edge</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="component-info" id="comp-info">
+      <h3>👆 Click any component above</h3>
+      <p>Each box will explain its role, why it's needed, and what happens without it.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── SECTION 2: LB vs Gateway ── -->
+  <div class="section" id="lb-vs-gateway">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(249,115,22,0.1);">❓</div>
+      <div>
+        <div class="section-title">Why Load Balancer BEFORE API Gateway?</div>
+        <div class="section-sub">This is one of the most common interview questions</div>
+      </div>
+    </div>
+
+    <div class="spof-grid">
+      <div class="spof-card bad">
+        <h4>❌ Wrong Order</h4>
+        <p>If you put the API Gateway first, it becomes a bottleneck. One machine handles ALL traffic — auth, rate limiting, routing. Under heavy load, it crumbles.</p>
+        <div class="ascii-block">
+Client
+  ↓
+API Gateway ← single machine!
+  ↓
+Services
+        </div>
+      </div>
+      <div class="spof-card good">
+        <h4>✅ Correct Order</h4>
+        <p>Load Balancer sits in front and distributes traffic across multiple API Gateway instances. Now the gateway scales horizontally.</p>
+        <div class="ascii-block">
+Client
+  ↓
+Load Balancer
+  ↓ ↓ ↓
+GW1 GW2 GW3  ← all 3 active
+  ↓
+Services
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <h3 style="font-size:15px; font-weight:700; margin-bottom:12px; color:#fff;">🧠 The Mall Analogy</h3>
+      <p style="color:var(--muted); font-size:14px; line-height:1.8;">
+        Think of a shopping mall. The <strong style="color:#f97316;">Load Balancer</strong> is like the parking lot directing cars to available entrances. The <strong style="color:#14b8a6;">API Gateway</strong> is the security check at each entrance verifying IDs (auth) and checking bags (rate limit). You need multiple entrances — you can't have just one security guard for the entire mall.
+      </p>
+    </div>
+
+    <div class="card mt-20">
+      <h3 style="font-size:15px; font-weight:700; margin-bottom:16px; color:#fff;">What each one does</h3>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Responsibility</th>
+            <th>Layer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:#f97316;">Load Balancer</strong></td>
+            <td>Distribute traffic. Health checks. Failover.</td>
+            <td><span class="pill pill-blue">L4 / L7 Network</span></td>
+          </tr>
+          <tr>
+            <td><strong style="color:#14b8a6;">API Gateway</strong></td>
+            <td>Auth, Rate limiting, Routing, Request transformation</td>
+            <td><span class="pill pill-green">Application Layer</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── SECTION 3: SPOF ── -->
+  <div class="section" id="spof">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(239,68,68,0.1);">⚠️</div>
+      <div>
+        <div class="section-title">Single Point of Failure (SPOF)</div>
+        <div class="section-sub">Every component can fail. Here's how we handle it.</div>
+      </div>
+    </div>
+
+    <div class="qa-grid">
+
+      <div class="qa-card">
+        <div class="qa-question" onclick="toggleQA(this)">
+          <div class="qa-question-text">
+            <span class="qa-icon">⚖️</span>
+            <span>Isn't the Load Balancer itself a SPOF?</span>
+          </div>
+          <span class="qa-chevron">▼</span>
+        </div>
+        <div class="qa-answer">
+          <p style="color:var(--muted); font-size:14px; line-height:1.8;">Yes — if you have only one. The fix is running <strong style="color:#fff;">two Load Balancers in Active-Passive mode</strong>.</p>
+          <div class="ascii-block">
+LB Primary (active)  ←── handles all traffic
+LB Secondary (standby) ←── takes over if primary dies
+
+DNS failover switches to secondary in ~30 seconds
+          </div>
+          <p style="color:var(--muted); font-size:14px; line-height:1.8; margin-top:12px;">Cloud providers (AWS ALB, GCP Load Balancer) handle this automatically — they run redundant LBs under the hood. You never manage this manually.</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="qa-question" onclick="toggleQA(this)">
+          <div class="qa-question-text">
+            <span class="qa-icon">🚪</span>
+            <span>What if an API Gateway instance dies?</span>
+          </div>
+          <span class="qa-chevron">▼</span>
+        </div>
+        <div class="qa-answer">
+          <p style="color:var(--muted); font-size:14px; line-height:1.8;">The Load Balancer runs <strong style="color:#fff;">health checks every 5–10 seconds</strong>. If a Gateway stops responding:</p>
+          <div class="ascii-block">
+LB pings → GW2 no response ❌
+LB marks GW2 as unhealthy
+LB stops sending traffic to GW2
+Traffic now splits between GW1 and GW3 ✅
+          </div>
+          <p style="color:var(--muted); font-size:14px; line-height:1.8; margin-top:12px;">This is called <strong style="color:#fff;">automatic failover</strong>. Users experience zero downtime.</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="qa-question" onclick="toggleQA(this)">
+          <div class="qa-question-text">
+            <span class="qa-icon">🗄️</span>
+            <span>What if the database goes down?</span>
+          </div>
+          <span class="qa-chevron">▼</span>
+        </div>
+        <div class="qa-answer">
+          <p style="color:var(--muted); font-size:14px; line-height:1.8;">Databases use <strong style="color:#fff;">Primary-Replica replication</strong>:</p>
+          <div class="ascii-block">
+PostgreSQL Primary  ── writes go here
+       ↓ (replication)
+PostgreSQL Replica 1  ── reads can go here
+PostgreSQL Replica 2  ── failover if primary dies
+          </div>
+          <p style="color:var(--muted); font-size:14px; line-height:1.8; margin-top:12px;">If Primary dies → Replica is promoted to Primary automatically (using tools like Patroni or AWS RDS Multi-AZ).</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="qa-question" onclick="toggleQA(this)">
+          <div class="qa-question-text">
+            <span class="qa-icon">⚡</span>
+            <span>What if Redis (cache) goes down?</span>
+          </div>
+          <span class="qa-chevron">▼</span>
+        </div>
+        <div class="qa-answer">
+          <p style="color:var(--muted); font-size:14px; line-height:1.8;">Redis runs in <strong style="color:#fff;">cluster mode with replication</strong>. If cache goes down, services fall back to the database directly — slower, but still working. This is called a <strong style="color:#fff;">cache miss</strong>.</p>
+          <div class="ascii-block">
+Feed Service → Redis (cache miss!) → PostgreSQL
+                                    ← returns data
+             → repopulate Redis
+          </div>
+          <p style="color:var(--muted); font-size:14px; line-height:1.8; margin-top:12px;">⚠️ This is called a <strong style="color:#fff;">cache stampede</strong> if many users hit at once. Mitigation: use a lock or probabilistic early expiration.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="tip-box">
+      <span>💡</span>
+      <div><strong>Key Insight:</strong> No system is truly zero-SPOF. The goal is to make failures <em>automatic</em>, <em>fast</em>, and <em>invisible to users</em>. Design for failure, not against it.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── SECTION 4: Communication ── -->
+  <div class="section" id="communication">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(59,130,246,0.1);">🔗</div>
+      <div>
+        <div class="section-title">How Microservices Communicate</div>
+        <div class="section-sub">Two patterns: Synchronous (direct) and Asynchronous (via queue)</div>
+      </div>
+    </div>
+
+    <div class="spof-grid">
+      <div class="flow-diagram">
+        <div class="flow-title" style="color:var(--blue);">🔵 Synchronous — HTTP / gRPC</div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Used when the caller <strong style="color:#fff;">needs the result immediately</strong> to continue.</p>
+        <div class="flow-row">
+          <div class="flow-node highlight-blue">User requests feed</div>
+          <div class="flow-arrow-line sync"></div>
+          <div class="flow-node highlight-blue">Feed Service</div>
+        </div>
+        <div class="flow-row" style="margin-left:40px;">
+          <div class="flow-node highlight-blue">Feed Service</div>
+          <div class="flow-arrow-line sync"></div>
+          <div class="flow-node highlight-blue">Post Service</div>
+          <div class="flow-label">waits...</div>
+        </div>
+        <div class="flow-row" style="margin-left:80px;">
+          <div class="flow-node highlight-blue">Post Service</div>
+          <div class="flow-arrow-line sync"></div>
+          <div class="flow-node highlight-blue">Returns posts ✅</div>
+        </div>
+        <div class="tip-box mt-12" style="font-size:12px;">
+          <span>⚡</span>
+          <div>Use when: rendering a page, getting user data, checking auth. <strong>User is waiting.</strong></div>
+        </div>
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-title" style="color:var(--yellow);">🟡 Asynchronous — Message Queue</div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Used for <strong style="color:#fff;">background side effects</strong> — caller doesn't wait.</p>
+        <div class="flow-row">
+          <div class="flow-node highlight-green">Post Service</div>
+          <div class="flow-arrow-line async"></div>
+          <div class="flow-node highlight-yellow">Kafka Event</div>
+          <div class="flow-label">fire &amp; forget</div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="flow-row" style="margin-left:40px;">
+          <div class="flow-node highlight-yellow">Kafka</div>
+          <div class="flow-arrow-line async"></div>
+          <div class="flow-node highlight-purple">Search Indexer</div>
+        </div>
+        <div class="flow-row" style="margin-left:40px;">
+          <div class="flow-node highlight-yellow">Kafka</div>
+          <div class="flow-arrow-line async"></div>
+          <div class="flow-node highlight-purple">Notification Svc</div>
+        </div>
+        <div class="flow-row" style="margin-left:40px;">
+          <div class="flow-node highlight-yellow">Kafka</div>
+          <div class="flow-arrow-line async"></div>
+          <div class="flow-node highlight-purple">Feed Ranker</div>
+        </div>
+        <div class="tip-box mt-12" style="font-size:12px;">
+          <span>⚡</span>
+          <div>Use when: sending notifications, indexing, analytics. <strong>User doesn't need to wait.</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <h3 style="font-size:15px; font-weight:700; margin-bottom:16px; color:#fff;">📊 When to use which?</h3>
+      <table class="compare-table">
+        <thead>
+          <tr><th>Situation</th><th>Pattern</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>User loads their feed</td>
+            <td><span class="pill pill-blue">Sync</span></td>
+            <td>User is staring at loading screen</td>
+          </tr>
+          <tr>
+            <td>New post created → index for search</td>
+            <td><span class="pill pill-yellow">Async</span></td>
+            <td>Slight delay in search is fine</td>
+          </tr>
+          <tr>
+            <td>Check if user is authenticated</td>
+            <td><span class="pill pill-blue">Sync</span></td>
+            <td>Can't proceed without the answer</td>
+          </tr>
+          <tr>
+            <td>Send "you got a reply" email</td>
+            <td><span class="pill pill-yellow">Async</span></td>
+            <td>Email can arrive 2 seconds later, no problem</td>
+          </tr>
+          <tr>
+            <td>Vote count update</td>
+            <td><span class="pill pill-yellow">Async</span></td>
+            <td>Eventual consistency is fine for vote counts</td>
+          </tr>
+          <tr>
+            <td>Fetch post data to render page</td>
+            <td><span class="pill pill-blue">Sync</span></td>
+            <td>Page is blank without it</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── SECTION 5: Kafka ── -->
+  <div class="section" id="kafka">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(234,179,8,0.1);">📨</div>
+      <div>
+        <div class="section-title">Why Message Queue (Kafka)?</div>
+        <div class="section-sub">Decoupling, durability, and independent scaling</div>
+      </div>
+    </div>
+
+    <div class="spof-grid">
+      <div class="spof-card bad">
+        <h4>❌ Without Message Queue</h4>
+        <p>Post Service directly calls every downstream service. What if Notification Service is slow? What if Search Service is down?</p>
+        <div class="ascii-block">
+Post Service
+  ├──→ Search Indexer     (down? Post fails!)
+  ├──→ Notification Svc   (slow? User waits!)
+  └──→ Analytics          (crash? Data lost!)
+        </div>
+        <p style="margin-top:12px;"><strong style="color:#ef4444;">Tightly coupled.</strong> One slow service cascades and breaks everything.</p>
+      </div>
+      <div class="spof-card good">
+        <h4>✅ With Kafka</h4>
+        <p>Post Service fires one event. Each service independently picks it up when ready.</p>
+        <div class="ascii-block">
+Post Service → Kafka ✅
+               ↓
+  (each consumer reads independently)
+  Search Indexer    → picks up when ready
+  Notification Svc  → picks up when ready
+  Analytics         → picks up when ready
+        </div>
+        <p style="margin-top:12px;"><strong style="color:#22c55e;">Loosely coupled.</strong> Failures are isolated. Messages wait in Kafka until consumed.</p>
+      </div>
+    </div>
+
+    <div class="kafka-flow mt-20">
+      <div style="text-align:center; margin-bottom:20px;">
+        <h3 style="font-size:16px; font-weight:800; color:#fff;">Kafka Architecture</h3>
+        <p style="font-size:13px; color:var(--muted); margin-top:4px;">Topics, Producers, and Consumers</p>
+      </div>
+
+      <div class="kafka-row">
+        <div class="kafka-producer">📝 Post Service<br><span style="font-weight:400; color:rgba(34,197,94,0.7); font-size:10px;">Producer</span></div>
+        <div class="kafka-producer">👍 Vote Service<br><span style="font-weight:400; color:rgba(34,197,94,0.7); font-size:10px;">Producer</span></div>
+        <div class="kafka-producer">👤 User Service<br><span style="font-weight:400; color:rgba(34,197,94,0.7); font-size:10px;">Producer</span></div>
+      </div>
+
+      <div class="kafka-arrow-down">↓ &nbsp; publish events &nbsp; ↓</div>
+
+      <div class="kafka-broker">
+        <h4>📨 Kafka Broker</h4>
+        <p>Topics: post.created · vote.cast · user.signup</p>
+        <p style="margin-top:6px; font-size:11px; color:rgba(234,179,8,0.6);">Stores messages durably until consumed</p>
+      </div>
+
+      <div class="kafka-arrow-down">↓ &nbsp; consume events &nbsp; ↓</div>
+
+      <div class="kafka-row">
+        <div class="kafka-consumer">🔍 Search Indexer<br><span style="font-weight:400; color:rgba(168,85,247,0.7); font-size:10px;">Consumer</span></div>
+        <div class="kafka-consumer">🔔 Notification Svc<br><span style="font-weight:400; color:rgba(168,85,247,0.7); font-size:10px;">Consumer</span></div>
+        <div class="kafka-consumer">📊 Analytics<br><span style="font-weight:400; color:rgba(168,85,247,0.7); font-size:10px;">Consumer</span></div>
+        <div class="kafka-consumer">📰 Feed Ranker<br><span style="font-weight:400; color:rgba(168,85,247,0.7); font-size:10px;">Consumer</span></div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <h3 style="font-size:15px; font-weight:700; margin-bottom:12px; color:#fff;">3 Key Benefits of Kafka</h3>
+      <table class="compare-table">
+        <thead><tr><th>Benefit</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:#eab308;">Decoupling</strong></td>
+            <td>Post Service doesn't know (or care) who consumes its events. Add a new consumer without touching Post Service.</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#eab308;">Durability</strong></td>
+            <td>Messages are stored on disk. If Notification Service crashes, messages wait — nothing is lost.</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#eab308;">Independent Scaling</strong></td>
+            <td>Scale Search Indexer independently from Notification Service. No need to scale everything together.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── SECTION 6: Summary ── -->
+  <div class="section" id="summary">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(34,197,94,0.1);">✅</div>
+      <div>
+        <div class="section-title">Summary — Key Takeaways</div>
+        <div class="section-sub">Everything you need to remember from this HLD</div>
+      </div>
+    </div>
+
+    <div class="spof-grid">
+      <div class="card">
+        <h4 style="font-size:13px; font-weight:700; color:var(--orange); margin-bottom:10px;">⚖️ Load Balancer vs API Gateway</h4>
+        <p style="font-size:13px; color:var(--muted); line-height:1.8;">LB distributes traffic across multiple Gateway instances. Gateway handles auth + routing. You need both — they solve different problems at different layers.</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px; font-weight:700; color:var(--red); margin-bottom:10px;">⚠️ No such thing as zero-SPOF</h4>
+        <p style="font-size:13px; color:var(--muted); line-height:1.8;">Every component can fail. Fix: run multiple instances + health checks + automatic failover. Cloud providers handle most of this for you.</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px; font-weight:700; color:var(--blue); margin-bottom:10px;">🔵 Sync = user is waiting</h4>
+        <p style="font-size:13px; color:var(--muted); line-height:1.8;">Use HTTP/gRPC for direct calls when the response is needed immediately (feed load, auth check, post fetch).</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px; font-weight:700; color:var(--yellow); margin-bottom:10px;">🟡 Async = background work</h4>
+        <p style="font-size:13px; color:var(--muted); line-height:1.8;">Use Kafka for side effects (notifications, search indexing, analytics). Fire and forget — decouple services.</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px; font-weight:700; color:var(--purple); margin-bottom:10px;">⚡ Cache everything hot</h4>
+        <p style="font-size:13px; color:var(--muted); line-height:1.8;">Reddit is 30:1 read-heavy. Store ranked feeds in Redis. Serve from cache — 100x faster than hitting the DB every time.</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px; font-weight:700; color:var(--green); margin-bottom:10px;">⚙️ Split services by responsibility</h4>
+        <p style="font-size:13px; color:var(--muted); line-height:1.8;">Feed Service, Vote Service, Post Service — each has one job. Scale, deploy, and fail independently. Microservices over monolith at this scale.</p>
+      </div>
+    </div>
+
+    <div class="tip-box" style="margin-top:24px;">
+      <span>🗺️</span>
+      <div><strong>Next Step:</strong> Data Modeling — what do the database tables look like? How do we model posts, subreddits, users, votes, and comments in PostgreSQL?</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  Part of the <strong>System Design Metro Map</strong> learning series by <a href="https://newsletter.systemdesign.one">Neo Kim</a> ·
+  Documented by Avinash
+</div>
+
+<script>
+  // Component info data
+  const componentData = {
+    client: {
+      color: '#3b82f6',
+      title: '📱 Client — Web & Mobile App',
+      tags: ['<span class="tag tag-why">WHAT</span>'],
+      text: 'The frontend users interact with. Sends API requests to the Load Balancer, renders the feed, handles voting UI. Built as a Single Page App (React) for fast, smooth interactions without full page reloads.'
+    },
+    lb: {
+      color: '#f97316',
+      title: '⚖️ Load Balancer',
+      tags: ['<span class="tag tag-why">WHY FIRST</span>'],
+      text: 'Distributes incoming traffic across multiple API Gateway instances. Runs health checks every few seconds — if a Gateway goes down, it automatically stops routing to it. Without an LB, one Gateway handles all 100K users: instant bottleneck.'
+    },
+    gw1: { color: '#14b8a6', title: '🚪 API Gateway (Instance 1 of 3)', tags: ['<span class="tag tag-spof">SPOF MITIGATION</span>'], text: 'We run 3 Gateway instances. If this one crashes, the Load Balancer routes to instances 2 and 3. Zero downtime. Each instance handles: Auth (JWT verification), Rate limiting (max 100 req/min per user), Routing (sends /feed → Feed Service, /posts → Post Service).' },
+    gw2: { color: '#14b8a6', title: '🚪 API Gateway (Instance 2 of 3)', tags: ['<span class="tag tag-spof">SPOF MITIGATION</span>'], text: 'Active instance. Handles the same responsibilities as all other gateways. The Load Balancer splits traffic evenly across all 3 using Round Robin or Least Connections algorithm.' },
+    gw3: { color: '#14b8a6', title: '🚪 API Gateway (Instance 3 of 3)', tags: ['<span class="tag tag-spof">SPOF MITIGATION</span>'], text: 'Third active instance. Running 3 means you can lose one and still serve traffic at 66% capacity while the failed instance restarts. Cloud auto-scaling can spin up a 4th instance automatically under high load.' },
+    feed: {
+      color: '#22c55e',
+      title: '📰 Feed Service',
+      tags: ['<span class="tag tag-how">MOST CALLED</span>'],
+      text: 'The most frequently called service — triggered every time a user opens Reddit. Fetches post IDs, ranks them using the Hot algorithm (upvotes / (age^1.8)), and returns a sorted list. Results are cached in Redis to avoid re-ranking on every request. Called synchronously — user waits for it.'
+    },
+    post: {
+      color: '#22c55e',
+      title: '📝 Post Service',
+      tags: ['<span class="tag tag-how">WRITE + READ</span>'],
+      text: 'Handles creating new posts and fetching post details. Separated from Feed Service because write logic is complex: validate content, upload media to S3, persist to DB, then publish a "post.created" event to Kafka. Reads are called synchronously by Feed Service.'
+    },
+    vote: {
+      color: '#22c55e',
+      title: '👍 Vote Service',
+      tags: ['<span class="tag tag-how">HIGH FREQUENCY</span>'],
+      text: 'Upvotes/downvotes are extremely frequent. Instead of writing to PostgreSQL on every vote (would destroy the DB), votes are batched in Redis and flushed to the DB every 10 seconds. This is called "write batching." Vote counts use eventual consistency — a 10-second delay is fine.'
+    },
+    search: {
+      color: '#22c55e',
+      title: '🔍 Search Service',
+      tags: ['<span class="tag tag-why">WHY NOT SQL</span>'],
+      text: 'Full-text search on millions of posts with ranking, filters, and fuzzy matching is extremely slow in PostgreSQL (LIKE queries do full table scans). Elasticsearch is a dedicated search engine optimized for this. Posts are indexed here asynchronously via Kafka whenever a new post is created.'
+    },
+    notif: {
+      color: '#22c55e',
+      title: '🔔 Notification Service',
+      tags: ['<span class="tag tag-how">ASYNC ONLY</span>'],
+      text: 'Sends email and push notifications for replies, mentions, and awards. Always called asynchronously via Kafka — the user doesn\'t need to wait for "your reply was emailed" to complete before seeing their post was submitted. If this service crashes, messages wait safely in Kafka.'
+    },
+    redis: {
+      color: '#a855f7',
+      title: '⚡ Redis Cache',
+      tags: ['<span class="tag tag-why">PERFORMANCE</span>'],
+      text: '95% of Reddit traffic is reading feeds. Serving from Redis (in-memory, microseconds) vs PostgreSQL (disk, milliseconds) is 100–1000x faster. Stores: ranked feed results (TTL 5 min), user sessions, vote counts. If Redis goes down, services fall back to the DB — slower but functional.'
+    },
+    kafka: {
+      color: '#eab308',
+      title: '📨 Kafka Message Queue',
+      tags: ['<span class="tag tag-why">DECOUPLING</span>'],
+      text: 'Kafka decouples producers from consumers. Post Service fires a "post.created" event and moves on. Search Indexer, Notification Service, and Analytics all consume independently. Benefits: (1) Post Service doesn\'t care if consumers are slow/down. (2) No data loss if a consumer crashes. (3) Easy to add new consumers later.'
+    },
+    postgres: {
+      color: '#ef4444',
+      title: '🗄️ PostgreSQL — Primary DB',
+      tags: ['<span class="tag tag-how">STRUCTURED DATA</span>'],
+      text: 'Stores structured data: users, posts, comments, subreddits, votes. Relational DB fits because data has clear relationships (user → post → comment). Uses Primary-Replica setup: all writes go to Primary, reads can go to Replicas to distribute load. If Primary dies, a Replica is automatically promoted.'
+    },
+    elastic: {
+      color: '#ef4444',
+      title: '🔎 Elasticsearch',
+      tags: ['<span class="tag tag-why">SEARCH ENGINE</span>'],
+      text: 'A dedicated search engine separate from PostgreSQL. Posts are indexed here asynchronously via Kafka. Supports: full-text search, fuzzy matching, filters (subreddit, date, score), relevance ranking. PostgreSQL LIKE queries would be 100x slower and lock tables under load.'
+    },
+    s3: {
+      color: '#ef4444',
+      title: '🪣 Object Storage (S3)',
+      tags: ['<span class="tag tag-why">MEDIA STORAGE</span>'],
+      text: 'Images and videos are never stored in a database or on app servers — too large, wrong tool. S3 stores objects (files) with 11 nines of durability. Files are served via CDN, not directly from S3. Pre-signed URLs allow secure direct uploads from the browser without going through your API server.'
+    },
+    cdn: {
+      color: '#f97316',
+      title: '🌐 CDN (Content Delivery Network)',
+      tags: ['<span class="tag tag-why">LATENCY</span>'],
+      text: 'Caches images, videos, and static assets (JS, CSS) at edge servers close to users. A user in Mumbai gets content from a Mumbai CDN node, not a US data center — 10x faster. Without CDN, every image request hits your origin server: slow and expensive.'
+    }
+  };
+
+  function showInfo(key) {
+    const d = componentData[key];
+    if (!d) return;
+    const panel = document.getElementById('comp-info');
+    panel.style.borderLeftColor = d.color;
+    panel.innerHTML = `
+      <div style="margin-bottom:8px;">${d.tags.join('')}</div>
+      <h3>${d.title}</h3>
+      <p style="margin-top:8px;">${d.text}</p>
+    `;
+    // highlight active box
+    document.querySelectorAll('.arch-box').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  function toggleQA(el) {
+    const card = el.closest('.qa-card');
+    card.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
