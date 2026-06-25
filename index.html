@@ -712,6 +712,57 @@
     .detail-content { margin: 8px; padding: 24px 20px 60px; }
     .nav-inner { padding: 0 20px; }
   }
+
+  /* ── CAP TOOLTIPS ── */
+  .cap-tt {
+    display: inline-block;
+    position: relative;
+    border-bottom: 1.5px dashed #6366f1;
+    color: #6366f1;
+    font-weight: 700;
+    cursor: help;
+  }
+  .cap-tt .cap-tip {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    font-weight: 400;
+    font-style: normal;
+    text-align: left;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    white-space: normal;
+  }
+  .cap-tt .cap-tip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-top-color: #1e293b;
+  }
+  .cap-tt:hover .cap-tip {
+    visibility: visible;
+    opacity: 1;
+  }
+  .cap-tip-head { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px; display: block; }
+  .cap-tip-row { display: flex; gap: 6px; margin-bottom: 3px; font-size: 11px; }
+  .cap-tip-label { color: #94a3b8; min-width: 70px; flex-shrink: 0; }
+  .cap-tip-val { color: #e2e8f0; }
+  .cap-tip-eg { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; font-size: 11px; color: #94a3b8; }
 </style>
 </head>
 <body>
@@ -6078,11 +6129,51 @@ function selectStep(i) {
 function renderContent(i) {
   const step = _currentSys.steps[i];
   const total = _currentSys.steps.length;
-  document.getElementById('detail-content').innerHTML = `
+  const el = document.getElementById('detail-content');
+  el.innerHTML = `
     <div class="content-step-meta">Step ${i + 1} of ${total}</div>
     <div class="content-step-title">${step.name}</div>
     ${step.content}
   `;
+  addCapTooltips(el);
+}
+
+function addCapTooltips(container) {
+  const tips = {
+    CP: `<span class="cap-tt">CP<span class="cap-tip">
+      <span class="cap-tip-head">CP — Consistency + Partition Tolerance</span>
+      <div class="cap-tip-row"><span class="cap-tip-label">During split:</span><span class="cap-tip-val">Returns error, never stale data</span></div>
+      <div class="cap-tip-row"><span class="cap-tip-label">Prioritises:</span><span class="cap-tip-val">Correctness over uptime</span></div>
+      <div class="cap-tip-row"><span class="cap-tip-label">Use for:</span><span class="cap-tip-val">Payments, bookings, auth, inventory</span></div>
+      <div class="cap-tip-eg">Examples: PostgreSQL · MySQL · ZooKeeper · etcd</div>
+    </span></span>`,
+    AP: `<span class="cap-tt">AP<span class="cap-tip">
+      <span class="cap-tip-head">AP — Availability + Partition Tolerance</span>
+      <div class="cap-tip-row"><span class="cap-tip-label">During split:</span><span class="cap-tip-val">Stays up, may return stale data</span></div>
+      <div class="cap-tip-row"><span class="cap-tip-label">Prioritises:</span><span class="cap-tip-val">Uptime over perfect consistency</span></div>
+      <div class="cap-tip-row"><span class="cap-tip-label">Use for:</span><span class="cap-tip-val">Feeds, caches, search, vote counts</span></div>
+      <div class="cap-tip-eg">Examples: Redis · Cassandra · DynamoDB · Elasticsearch</div>
+    </span></span>`,
+  };
+
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+
+  nodes.forEach(node => {
+    const tag = node.parentNode && node.parentNode.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CODE') return;
+    if (node.parentNode && node.parentNode.closest && node.parentNode.closest('.cap-tt')) return;
+    const txt = node.textContent;
+    if (!/\bCP\b|\bAP\b/.test(txt)) return;
+    const html = txt
+      .replace(/\bCP\b/g, tips.CP)
+      .replace(/\bAP\b/g, tips.AP);
+    const wrap = document.createElement('span');
+    wrap.innerHTML = html;
+    node.parentNode.replaceChild(wrap, node);
+  });
 }
 
 function goHome() {
