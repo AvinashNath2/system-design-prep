@@ -5198,7 +5198,7 @@ systems['bookmyshow'] = {
       <div class="content-label">Tables</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="db-node"><div class="db-node-header" style="background:#eff6ff;border-color:#bfdbfe;"><span class="db-node-icon">🎪</span><span class="db-node-name">events</span></div><div class="db-node-body"><div class="db-row pk">🔑 event_id <span>UUID · PK</span></div><div class="db-row">name <span>e.g. "Coldplay World Tour"</span></div><div class="db-row">venue_id <span>FK → venues</span></div><div class="db-row">starts_at <span>TIMESTAMP</span></div><div class="db-row">total_seats <span>INT</span></div><div class="db-row">available_seats <span>INT (cached count)</span></div></div></div>
-        <div class="db-node"><div class="db-node-header" style="background:#fefce8;border-color:#fef08a;"><span class="db-node-icon">🪑</span><span class="db-node-name">seats</span></div><div class="db-node-body"><div class="db-row pk">🔑 seat_id <span>UUID · PK</span></div><div class="db-row fk">🔗 event_id <span>FK → events</span></div><div class="db-row">row_label <span>e.g. "C"</span></div><div class="db-row">seat_number <span>e.g. 14</span></div><div class="db-row">category <span>VIP / GOLD / GENERAL</span></div><div class="db-row">status <span>ENUM: AVAILABLE/HELD/BOOKED</span></div><div class="db-row">price <span>DECIMAL</span></div></div></div>
+        <div class="db-node"><div class="db-node-header" style="background:#fefce8;border-color:#fef08a;"><span class="db-node-icon">🪑</span><span class="db-node-name">seats</span></div><div class="db-node-body"><div class="db-row pk">🔑 seat_id <span>UUID · PK</span></div><div class="db-row fk">🔗 event_id <span>FK → events</span></div><div class="db-row">row_label <span>e.g. "C"</span></div><div class="db-row">seat_number <span>e.g. 14</span></div><div class="db-row">category <span>VIP / GOLD / GENERAL</span></div><div class="db-row">status <span>ENUM: AVAILABLE/HELD/BOOKED/EXPIRED</span></div><div class="db-row">expires_at <span>TIMESTAMP (nullable)</span></div><div class="db-row">price <span>DECIMAL</span></div></div></div>
         <div class="db-node"><div class="db-node-header" style="background:#f0fdf4;border-color:#bbf7d0;"><span class="db-node-icon">🎫</span><span class="db-node-name">bookings</span></div><div class="db-node-body"><div class="db-row pk">🔑 booking_id <span>UUID · PK</span></div><div class="db-row fk">🔗 user_id <span>FK → users</span></div><div class="db-row fk">🔗 event_id <span>FK → events</span></div><div class="db-row">seat_ids <span>UUID[] ARRAY</span></div><div class="db-row">amount <span>DECIMAL</span></div><div class="db-row">qr_code <span>VARCHAR (generated)</span></div><div class="db-row">status <span>CONFIRMED / CANCELLED</span></div></div></div>
         <div class="db-node"><div class="db-node-header" style="background:#faf5ff;border-color:#e9d5ff;"><span class="db-node-icon">⏳</span><span class="db-node-name">Redis: seat holds</span></div><div class="db-node-body"><div class="db-row pk">🔑 hold:{seat_id} → user_id</div><div class="db-row">TTL: 600 seconds (10 min)</div><div class="db-row">Set via: SET NX EX 600</div><div class="db-row">Auto-expires → seat returns to AVAILABLE</div></div></div>
       </div>` },
@@ -5206,12 +5206,140 @@ systems['bookmyshow'] = {
       <div class="content-label">The exact sequence that prevents two users getting the same seat</div>
       <ul class="req-list">
         <li><strong>Step 1 — User selects seat A7</strong> — client sends POST /hold {seat_id: "A7", user_id: "u123"}</li>
-        <li><strong>Step 2 — Redis SET NX</strong> — server runs: <code>SET hold:A7 u123 NX EX 600</code>. If another user already holds A7, Redis returns null and we return 409 Conflict immediately — no DB hit.</li>
-        <li><strong>Step 3 — Successful hold</strong> — Redis returns OK. Update seat status to HELD in PostgreSQL (non-blocking background write).</li>
-        <li><strong>Step 4 — Payment</strong> — user completes payment in 10 minutes. Payment Service calls Booking Service.</li>
-        <li><strong>Step 5 — DB transaction</strong> — <code>BEGIN; SELECT * FROM seats WHERE id='A7' FOR UPDATE; UPDATE seats SET status='BOOKED'; INSERT INTO bookings...; COMMIT;</code> — row lock prevents concurrent booking of same seat.</li>
-        <li><strong>Step 6 — Hold expiry</strong> — if user abandons cart, Redis TTL fires after 10 minutes. Background job detects expired hold, updates seat status back to AVAILABLE in PostgreSQL.</li>
-      </ul>` },
+        <li><strong>Step 2 — Redis SET NX</strong> — server runs: <code>SET hold:A7 u123 NX EX 600</code>. If another user already holds A7, Redis returns nil and we return 409 Conflict immediately — no DB hit at all.</li>
+        <li><strong>Step 3 — DB write (async background)</strong> — Redis returned OK. Write to PostgreSQL: <code>status=HELD, expires_at=NOW()+600s</code>. This is a background write — user doesn't wait for it. The <code>expires_at</code> column is the key to lazy cleanup.</li>
+        <li><strong>Step 4 — Payment</strong> — user completes payment within 10 minutes. Payment Service calls Booking Service.</li>
+        <li><strong>Step 5 — DB transaction (happy path)</strong> — <code>BEGIN; SELECT * FROM seats WHERE id='A7' FOR UPDATE; UPDATE seats SET status='BOOKED', expires_at=NULL; INSERT INTO bookings...; COMMIT;</code> then <code>DEL hold:A7</code> in Redis.</li>
+        <li><strong>Step 6 — Abandonment (Lazy Cleanup path)</strong> — user leaves. Redis TTL fires at 10 min, key is gone. DB row still says <code>HELD</code> — but every seat read always checks <code>expires_at &gt; NOW()</code>. Expired rows are invisible to queries. No proactive DB update needed.</li>
+      </ul>
+
+      <div class="content-label" style="margin-top:20px;">Lazy Cleanup — Why the DB Does Not Need Proactive Updates</div>
+      <div style="background:#fff7ed;border:2px solid #f97316;border-radius:8px;padding:12px 14px;font-size:12px;margin-bottom:14px;">
+        <strong style="color:#c2410c;">Core idea:</strong> <span style="color:#555;">Attach <code>expires_at</code> to every HELD row and always filter on it at read time. The row never needs to be updated on expiry — the query simply ignores it. The DB cleans up lazily, not reactively.</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid #e2e8f0;">
+          <strong style="color:#0f172a;">Reading seat status — always filter expires_at:</strong>
+          <pre style="margin-top:6px;background:#1e293b;color:#e2e8f0;padding:8px;border-radius:6px;font-size:10px;white-space:pre-wrap;">SELECT * FROM seats
+WHERE seat_id = 'A7'
+  AND (
+    status != 'HELD'
+    OR expires_at &gt; NOW()
+  )</pre>
+          <span style="color:#555;">If HELD but past <code>expires_at</code> → row invisible → seat treated as AVAILABLE. Zero DB update needed.</span>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid #e2e8f0;">
+          <strong style="color:#0f172a;">Cron job (every 5 min) — audit only, not correctness:</strong>
+          <pre style="margin-top:6px;background:#1e293b;color:#e2e8f0;padding:8px;border-radius:6px;font-size:10px;white-space:pre-wrap;">UPDATE seats
+SET status = 'EXPIRED'
+WHERE status = 'HELD'
+  AND expires_at &lt; NOW()</pre>
+          <span style="color:#555;">The seat is already effectively free from the moment Redis TTL fired. This cron only cleans the ledger for analytics. If the cron is down for an hour — nothing breaks.</span>
+        </div>
+      </div>
+
+      <div class="content-label" style="margin-top:4px;">End-to-End Flow with Lazy Cleanup</div>
+      <svg viewBox="0 0 580 470" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:-apple-system,sans-serif;margin-top:8px;">
+        <defs>
+          <marker id="bms-a" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#64748b"/></marker>
+          <marker id="bms-g" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#16a34a"/></marker>
+          <marker id="bms-r" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#dc2626"/></marker>
+        </defs>
+        <rect width="580" height="470" fill="#f8fafc" rx="10"/>
+        <text x="290" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">BookMyShow — Seat Hold + Lazy Cleanup Flow</text>
+
+        <!-- Box 1: User selects -->
+        <rect x="160" y="32" width="260" height="36" rx="7" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5"/>
+        <text x="290" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#1d4ed8">&#x2460; User selects seat A7</text>
+        <text x="290" y="60" text-anchor="middle" font-size="10" fill="#3b82f6">POST /hold  {seat_id: "A7", user_id: "u123"}</text>
+
+        <line x1="290" y1="68" x2="290" y2="86" stroke="#64748b" stroke-width="1.5" marker-end="url(#bms-a)"/>
+
+        <!-- Box 2: Redis SET NX -->
+        <rect x="148" y="86" width="284" height="40" rx="7" fill="#f3e8ff" stroke="#c084fc" stroke-width="1.5"/>
+        <text x="290" y="102" text-anchor="middle" font-size="11" font-weight="700" fill="#7c3aed">&#x2461; Redis: SET hold:A7 u123 NX EX 600</text>
+        <text x="290" y="116" text-anchor="middle" font-size="10" fill="#9333ea">Single atomic op &#x2014; only one user wins</text>
+
+        <!-- Branch labels -->
+        <text x="178" y="143" text-anchor="middle" font-size="10" font-weight="700" fill="#15803d">&#x2713; returns OK</text>
+        <text x="408" y="143" text-anchor="middle" font-size="10" font-weight="700" fill="#dc2626">&#x2717; returns nil</text>
+        <line x1="238" y1="126" x2="143" y2="154" stroke="#16a34a" stroke-width="1.5" marker-end="url(#bms-g)"/>
+        <line x1="342" y1="126" x2="442" y2="154" stroke="#dc2626" stroke-width="1.5" marker-end="url(#bms-r)"/>
+
+        <!-- Nil box: 409 -->
+        <rect x="388" y="154" width="170" height="36" rx="7" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+        <text x="473" y="168" text-anchor="middle" font-size="11" font-weight="700" fill="#b91c1c">Return 409 Conflict</text>
+        <text x="473" y="182" text-anchor="middle" font-size="10" fill="#dc2626">Seat held &#x2014; no DB hit</text>
+
+        <!-- Box 3: DB write -->
+        <rect x="22" y="154" width="210" height="40" rx="7" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+        <text x="127" y="170" text-anchor="middle" font-size="11" font-weight="700" fill="#15803d">&#x2462; DB write (async background)</text>
+        <text x="127" y="184" text-anchor="middle" font-size="10" fill="#16a34a">status=HELD &#x00B7; expires_at=NOW()+600s</text>
+
+        <line x1="127" y1="194" x2="127" y2="212" stroke="#64748b" stroke-width="1.5" marker-end="url(#bms-a)"/>
+
+        <!-- Box 4: Checkout timer -->
+        <rect x="22" y="212" width="210" height="36" rx="7" fill="#fefce8" stroke="#fde68a" stroke-width="1.5"/>
+        <text x="127" y="227" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e">&#x2463; Checkout screen (10 min timer)</text>
+        <text x="127" y="241" text-anchor="middle" font-size="10" fill="#b45309">User has 10 min to complete payment</text>
+
+        <!-- Note box: seat map reads Redis -->
+        <rect x="388" y="212" width="170" height="52" rx="7" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <text x="473" y="228" text-anchor="middle" font-size="10" font-weight="700" fill="#15803d">Seat map reads Redis</text>
+        <text x="473" y="242" text-anchor="middle" font-size="10" fill="#16a34a">No hold:A7 key = free</text>
+        <text x="473" y="256" text-anchor="middle" font-size="10" fill="#16a34a">DB status irrelevant for UI</text>
+
+        <!-- Second branch labels -->
+        <text x="56" y="266" text-anchor="middle" font-size="10" font-weight="700" fill="#15803d">&#x2713; Pays</text>
+        <text x="208" y="266" text-anchor="middle" font-size="10" font-weight="700" fill="#dc2626">&#x2717; Abandons</text>
+        <line x1="80" y1="248" x2="58" y2="274" stroke="#16a34a" stroke-width="1.5" marker-end="url(#bms-g)"/>
+        <line x1="168" y1="248" x2="222" y2="274" stroke="#dc2626" stroke-width="1.5" marker-end="url(#bms-r)"/>
+
+        <!-- Box 5a: Payment -->
+        <rect x="5" y="274" width="110" height="36" rx="7" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+        <text x="60" y="288" text-anchor="middle" font-size="11" font-weight="700" fill="#15803d">&#x2464;a Payment &#x2713;</text>
+        <text x="60" y="302" text-anchor="middle" font-size="10" fill="#16a34a">Booking Service called</text>
+
+        <line x1="60" y1="310" x2="60" y2="330" stroke="#64748b" stroke-width="1.5" marker-end="url(#bms-a)"/>
+
+        <!-- Box 6a: DB Transaction -->
+        <rect x="5" y="330" width="110" height="52" rx="7" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+        <text x="60" y="345" text-anchor="middle" font-size="10" font-weight="700" fill="#15803d">&#x2465;a DB Transaction</text>
+        <text x="60" y="359" text-anchor="middle" font-size="10" fill="#16a34a">status = BOOKED</text>
+        <text x="60" y="373" text-anchor="middle" font-size="10" fill="#16a34a">DEL hold:A7 (Redis)</text>
+
+        <line x1="60" y1="382" x2="60" y2="402" stroke="#64748b" stroke-width="1.5" marker-end="url(#bms-a)"/>
+
+        <!-- Box 7a: QR Ticket -->
+        <rect x="5" y="402" width="110" height="34" rx="7" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5"/>
+        <text x="60" y="416" text-anchor="middle" font-size="11" font-weight="700" fill="#1d4ed8">&#x2466;a QR Ticket</text>
+        <text x="60" y="430" text-anchor="middle" font-size="10" fill="#3b82f6">Booking confirmed &#x2713;</text>
+
+        <!-- Box 5b: Redis TTL -->
+        <rect x="158" y="274" width="210" height="40" rx="7" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+        <text x="263" y="289" text-anchor="middle" font-size="11" font-weight="700" fill="#c2410c">&#x2464;b Redis TTL fires (10 min)</text>
+        <text x="263" y="303" text-anchor="middle" font-size="10" fill="#ea580c">hold:A7 key deleted automatically</text>
+
+        <!-- Dashed arrow to note box -->
+        <line x1="368" y1="290" x2="388" y2="248" stroke="#16a34a" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#bms-g)"/>
+
+        <line x1="263" y1="314" x2="263" y2="334" stroke="#64748b" stroke-width="1.5" marker-end="url(#bms-a)"/>
+
+        <!-- Box 6b: Lazy Cleanup (highlighted) -->
+        <rect x="142" y="334" width="236" height="68" rx="7" fill="#fff7ed" stroke="#f97316" stroke-width="2.5"/>
+        <text x="260" y="352" text-anchor="middle" font-size="11" font-weight="700" fill="#c2410c">&#x2465;b Lazy Cleanup</text>
+        <text x="260" y="366" text-anchor="middle" font-size="10" fill="#ea580c">DB row still says HELD &#x2014; that is OK</text>
+        <text x="260" y="380" text-anchor="middle" font-size="10" fill="#555">Every read checks:</text>
+        <text x="260" y="393" text-anchor="middle" font-size="10" fill="#7c3aed" font-family="monospace, Courier New">expires_at &gt; NOW()</text>
+
+        <line x1="260" y1="402" x2="260" y2="422" stroke="#64748b" stroke-width="1.5" marker-end="url(#bms-a)"/>
+
+        <!-- Box 7b: Cron job -->
+        <rect x="142" y="422" width="236" height="40" rx="7" fill="#fefce8" stroke="#fde68a" stroke-width="1.5"/>
+        <text x="260" y="437" text-anchor="middle" font-size="10" font-weight="700" fill="#713f12">&#x2466;b Cron job every 5 min (audit only)</text>
+        <text x="260" y="450" text-anchor="middle" font-size="10" fill="#854d0e" font-family="monospace, Courier New">UPDATE status='EXPIRED' WHERE expires_at &lt; NOW()</text>
+      </svg>` },
     { name: 'Bottlenecks & Trade-offs', content: `
       <ul class="req-list" style="gap:10px;">
         <li><strong>🌩️ Thundering herd on ticket drops</strong><br><span style="color:#555;">100K users hit "Book Now" simultaneously. Without a waiting room, this DDoSes the DB. Solution: at ticket sale time, add all incoming users to a Redis sorted set (score = arrival timestamp). Serve 100 users at a time every second. Guaranteed fairness.</span></li>
