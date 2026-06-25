@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>System Design</title>
+<title>DevLearn — System Design</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -441,15 +441,310 @@
     font-size: 14px;
   }
   .coming-soon span { display: block; font-size: 32px; margin-bottom: 12px; }
+
+  /* ── SITE NAV ── */
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    height: 60px;
+  }
+  .nav-inner {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0 40px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #111;
+    text-decoration: none;
+  }
+  .nav-logo-icon {
+    width: 30px;
+    height: 30px;
+    background: #111;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .nav-links { display: flex; gap: 2px; }
+  .nav-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-link:hover { color: #111; background: #f5f5f5; }
+  .nav-link.active { color: #111; background: #f0f0f0; }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+    border-bottom: 1px solid #e0e7ff;
+    padding: 64px 40px 56px;
+  }
+  .hero-inner { max-width: 1160px; margin: 0 auto; }
+  .hero-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #6366f1;
+    margin-bottom: 16px;
+  }
+  .hero-title {
+    font-size: 40px;
+    font-weight: 800;
+    color: #0f0f0f;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    max-width: 620px;
+  }
+  .hero-sub {
+    font-size: 16px;
+    color: #666;
+    line-height: 1.6;
+    max-width: 540px;
+    margin-bottom: 40px;
+  }
+  .hero-stats { display: flex; gap: 48px; }
+  .hero-stat {}
+  .stat-num {
+    font-size: 30px;
+    font-weight: 800;
+    color: #111;
+    display: block;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 12px; color: #888; font-weight: 600; }
+
+  /* ── CARD PROBLEM TEXT ── */
+  .card-problem {
+    font-size: 11.5px;
+    color: #777;
+    line-height: 1.5;
+    margin: 6px 0 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ── DETAIL NAV ── */
+  .detail-nav {
+    position: sticky;
+    top: 60px;
+    z-index: 50;
+    background: #fafafa;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 54px;
+  }
+  .detail-breadcrumb {
+    font-size: 12px;
+    color: #aaa;
+  }
+  .detail-breadcrumb .bc-sep { margin: 0 6px; }
+  .detail-breadcrumb .bc-current { color: #333; font-weight: 600; }
+
+  /* ── DETAIL SIDEBAR LAYOUT ── */
+  .detail-layout {
+    display: flex;
+    min-height: calc(100vh - 114px);
+    background: #f5f5f5;
+  }
+
+  .detail-sidebar {
+    width: 256px;
+    flex-shrink: 0;
+    border-right: 1px solid #e8e8e8;
+    background: #fff;
+    position: sticky;
+    top: 114px;
+    height: calc(100vh - 114px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .sidebar-sys-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 8px;
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+  }
+  .sidebar-problem {
+    font-size: 11.5px;
+    color: #888;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .sidebar-steps-label {
+    padding: 16px 20px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #ccc;
+  }
+
+  .sidebar-steps { flex: 1; }
+
+  .sidebar-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border-left: 3px solid transparent;
+    user-select: none;
+  }
+  .sidebar-step:hover { background: #f8f8f8; }
+  .sidebar-step.active {
+    background: #f0f0ff;
+    border-left-color: #6366f1;
+  }
+  .sidebar-step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+  }
+  .sidebar-step.active .sidebar-step-num {
+    background: #6366f1;
+    color: #fff;
+  }
+  .sidebar-step-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #777;
+    line-height: 1.3;
+    transition: color 0.12s;
+  }
+  .sidebar-step.active .sidebar-step-name { color: #111; font-weight: 700; }
+
+  /* ── DETAIL CONTENT ── */
+  .detail-content {
+    flex: 1;
+    min-width: 0;
+    padding: 40px 52px 80px;
+    max-width: 900px;
+    background: #fff;
+    margin: 16px 16px 16px 0;
+    border-radius: 12px;
+    border: 1px solid #e8e8e8;
+    align-self: flex-start;
+  }
+
+  .content-step-meta {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #6366f1;
+    margin-bottom: 8px;
+  }
+  .content-step-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.4px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+    line-height: 1.2;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .site-nav .nav-links { display: none; }
+    .hero { padding: 40px 20px 36px; }
+    .hero-title { font-size: 28px; }
+    .hero-stats { gap: 28px; }
+    .systems-container { padding: 0 16px 60px; }
+    .detail-layout { flex-direction: column; }
+    .detail-sidebar {
+      width: 100%;
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .detail-content { margin: 8px; padding: 24px 20px 60px; }
+    .nav-inner { padding: 0 20px; }
+  }
 </style>
 </head>
 <body>
 
+<!-- ══════════════ SITE NAV ══════════════ -->
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a class="nav-logo">
+      <div class="nav-logo-icon">⚡</div>
+      DevLearn
+    </a>
+    <div class="nav-links">
+      <a class="nav-link active">System Design</a>
+      <a class="nav-link">Algorithms</a>
+      <a class="nav-link">Networking</a>
+      <a class="nav-link">OS Concepts</a>
+    </div>
+  </div>
+</nav>
+
 <!-- ══════════════ HOME PAGE ══════════════ -->
 <div id="home-page">
-  <div class="home-header">
-    <h1>System Design</h1>
-    <p>18 real-world systems — click any to explore the architecture.</p>
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">System Design · 25 Systems · 7 Steps Each</div>
+      <h1 class="hero-title">Build mental models,<br>not memorized answers</h1>
+      <p class="hero-sub">Every system follows the same 7-step framework. Learn the pattern once and you can walk through any system design interview with confidence.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="stat-num">25</span><span class="stat-label">Real Systems</span></div>
+        <div class="hero-stat"><span class="stat-num">7</span><span class="stat-label">Steps Each</span></div>
+        <div class="hero-stat"><span class="stat-num">0</span><span class="stat-label">Dependencies</span></div>
+      </div>
+    </div>
   </div>
 
   <div class="systems-container">
@@ -469,6 +764,7 @@
               <div class="card-name">Reddit</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do 430M users instantly read posts without the server rebuilding their feed each time?</div>
             <div class="card-tags"><span class="card-tag">Fan-out on Write</span><span class="card-tag">Vote Counting</span><span class="card-tag">Feed Ranking</span></div>
           </div>
         </div>
@@ -483,6 +779,7 @@
               <div class="card-name">Twitter Timeline</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does a single tweet reach 100M followers within seconds of being posted?</div>
             <div class="card-tags"><span class="card-tag">Fan-out on Read</span><span class="card-tag">Feed Ranking</span><span class="card-tag">Celebrity Problem</span></div>
           </div>
         </div>
@@ -497,6 +794,7 @@
               <div class="card-name">Bluesky</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you build a social network where no single company controls your data?</div>
             <div class="card-tags"><span class="card-tag">Decentralized</span><span class="card-tag">AT Protocol</span><span class="card-tag">Federation</span></div>
           </div>
         </div>
@@ -511,6 +809,7 @@
               <div class="card-name">YouTube</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does YouTube transcode an uploaded video into 20 formats and stream it to 2B users?</div>
             <div class="card-tags"><span class="card-tag">Video Transcoding</span><span class="card-tag">CDN</span><span class="card-tag">ABR Streaming</span></div>
           </div>
         </div>
@@ -525,6 +824,7 @@
               <div class="card-name">Spotify</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does Spotify stream 100M songs to 600M users with near-zero buffering?</div>
             <div class="card-tags"><span class="card-tag">Audio Streaming</span><span class="card-tag">CDN</span><span class="card-tag">Offline Cache</span></div>
           </div>
         </div>
@@ -539,6 +839,7 @@
               <div class="card-name">Netflix</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does Netflix know what show you'll want to watch before you even search for it?</div>
             <div class="card-tags"><span class="card-tag">Two-Tower ML</span><span class="card-tag">Offline Training</span><span class="card-tag">ANN Search</span></div>
           </div>
         </div>
@@ -553,6 +854,7 @@
               <div class="card-name">Twitch</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you live-stream video with under 1s delay to 2.5M concurrent viewers?</div>
             <div class="card-tags"><span class="card-tag">RTMP Ingest</span><span class="card-tag">HLS Transcode</span><span class="card-tag">WebSocket Chat</span></div>
           </div>
         </div>
@@ -575,6 +877,7 @@
               <div class="card-name">Slack</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does a message you type reach 10,000 teammates across the world in real time?</div>
             <div class="card-tags"><span class="card-tag">WebSocket</span><span class="card-tag">Pub/Sub</span><span class="card-tag">Message Ordering</span></div>
           </div>
         </div>
@@ -589,6 +892,7 @@
               <div class="card-name">WhatsApp</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does WhatsApp deliver 100B messages per day, even to phones that are offline?</div>
             <div class="card-tags"><span class="card-tag">E2E Encryption</span><span class="card-tag">Offline Delivery</span><span class="card-tag">Signal Protocol</span></div>
           </div>
         </div>
@@ -603,6 +907,7 @@
               <div class="card-name">Google Docs</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How can 50 people edit the same document simultaneously without overwriting each other?</div>
             <div class="card-tags"><span class="card-tag">OT / CRDT</span><span class="card-tag">Conflict Resolution</span><span class="card-tag">Real-time Sync</span></div>
           </div>
         </div>
@@ -625,6 +930,7 @@
               <div class="card-name">Airbnb</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you show real-time availability across 7M listings and prevent any double-booking?</div>
             <div class="card-tags"><span class="card-tag">Geo Search</span><span class="card-tag">Availability Calendar</span><span class="card-tag">Double Booking</span></div>
           </div>
         </div>
@@ -639,6 +945,7 @@
               <div class="card-name">Tinder</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does Tinder pick which 500 profiles to show you today from 75M users nearby?</div>
             <div class="card-tags"><span class="card-tag">Geo Matching</span><span class="card-tag">Swipe Queue</span><span class="card-tag">Quadtree Index</span></div>
           </div>
         </div>
@@ -653,6 +960,7 @@
               <div class="card-name">Payment System</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does a payment reach the merchant in under 2 seconds with zero risk of charging twice?</div>
             <div class="card-tags"><span class="card-tag">Idempotency</span><span class="card-tag">ACID Transactions</span><span class="card-tag">Saga Pattern</span></div>
           </div>
         </div>
@@ -667,6 +975,7 @@
               <div class="card-name">Stock Exchange</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does an exchange match millions of buy/sell orders with microsecond-level precision?</div>
             <div class="card-tags"><span class="card-tag">Order Matching</span><span class="card-tag">Low Latency</span><span class="card-tag">Price-Time Priority</span></div>
           </div>
         </div>
@@ -681,6 +990,7 @@
               <div class="card-name">BookMyShow</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you sell 50,000 concert tickets in 30 seconds with zero seats double-booked?</div>
             <div class="card-tags"><span class="card-tag">Pessimistic Lock</span><span class="card-tag">Redis SET NX</span><span class="card-tag">Waiting Room</span></div>
           </div>
         </div>
@@ -703,6 +1013,7 @@
               <div class="card-name">AWS S3</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does S3 store 100 trillion objects and retrieve any one of them in under 100ms?</div>
             <div class="card-tags"><span class="card-tag">Object Storage</span><span class="card-tag">Sharding</span><span class="card-tag">Multipart Upload</span></div>
           </div>
         </div>
@@ -717,6 +1028,7 @@
               <div class="card-name">Amazon Lambda</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does AWS run your code in milliseconds without you managing a single server?</div>
             <div class="card-tags"><span class="card-tag">Serverless</span><span class="card-tag">Cold Start</span><span class="card-tag">Event-driven</span></div>
           </div>
         </div>
@@ -731,6 +1043,7 @@
               <div class="card-name">Apache Kafka</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does one system reliably process 1 million events per second from 100 producers?</div>
             <div class="card-tags"><span class="card-tag">Event Streaming</span><span class="card-tag">Log Compaction</span><span class="card-tag">Consumer Groups</span></div>
           </div>
         </div>
@@ -745,6 +1058,7 @@
               <div class="card-name">URL Shortener</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you redirect 10 billion clicks per day in under 10ms using a 7-character code?</div>
             <div class="card-tags"><span class="card-tag">Hashing</span><span class="card-tag">Redirect Cache</span><span class="card-tag">301 vs 302</span></div>
           </div>
         </div>
@@ -759,6 +1073,7 @@
               <div class="card-name">Rate Limiter</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you stop one bad actor from bringing your entire API down for every user?</div>
             <div class="card-tags"><span class="card-tag">Token Bucket</span><span class="card-tag">Sliding Window</span><span class="card-tag">Redis Atomic</span></div>
           </div>
         </div>
@@ -773,6 +1088,7 @@
               <div class="card-name">Push Notifications</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does one event trigger the right notification on the right device in milliseconds?</div>
             <div class="card-tags"><span class="card-tag">Fan-out Delivery</span><span class="card-tag">Token Registry</span><span class="card-tag">Priority Queue</span></div>
           </div>
         </div>
@@ -795,6 +1111,7 @@
               <div class="card-name">LLMs / ChatGPT</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How do you stream AI responses to millions of users without the servers collapsing?</div>
             <div class="card-tags"><span class="card-tag">Token Streaming</span><span class="card-tag">KV Cache</span><span class="card-tag">Inference at Scale</span></div>
           </div>
         </div>
@@ -809,6 +1126,7 @@
               <div class="card-name">Uber</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does Uber match you with the nearest driver in under 3 seconds, anywhere in the world?</div>
             <div class="card-tags"><span class="card-tag">Geo Index</span><span class="card-tag">Driver Matching</span><span class="card-tag">Surge Pricing</span></div>
           </div>
         </div>
@@ -823,6 +1141,7 @@
               <div class="card-name">Apple AirTag</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does an AirTag locate itself using strangers' iPhones while preserving everyone's privacy?</div>
             <div class="card-tags"><span class="card-tag">BLE Crowd-source</span><span class="card-tag">Privacy by Design</span><span class="card-tag">Rotating Keys</span></div>
           </div>
         </div>
@@ -837,6 +1156,7 @@
               <div class="card-name">Google Typeahead</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does Google show 5 completions before you've finished typing a single word?</div>
             <div class="card-tags"><span class="card-tag">Trie</span><span class="card-tag">Prefix Index</span><span class="card-tag">Consistent Hash</span></div>
           </div>
         </div>
@@ -859,6 +1179,7 @@
               <div class="card-name">Segment</div>
               <div class="card-sub">✓ Done</div>
             </div>
+            <div class="card-problem">How does one analytics event from your app fan out to 100 different tools in real time?</div>
             <div class="card-tags"><span class="card-tag">Event Pipeline</span><span class="card-tag">Fan-out</span><span class="card-tag">Dead Letter Queue</span></div>
           </div>
         </div>
@@ -871,15 +1192,17 @@
 
 <!-- ══════════════ DETAIL PAGE ══════════════ -->
 <div id="detail-page">
-  <div class="detail-header">
+  <div class="detail-nav">
     <button class="back-btn" onclick="goHome()">← Back</button>
-    <div>
-      <div class="detail-title" id="detail-title">Reddit</div>
-      <div class="detail-sub" id="detail-sub">Social news aggregation</div>
+    <div class="detail-breadcrumb">
+      CS <span class="bc-sep">›</span>
+      System Design <span class="bc-sep">›</span>
+      <span class="bc-current" id="detail-breadcrumb-name"></span>
     </div>
   </div>
-  <div class="detail-body">
-    <div class="steps-list" id="steps-list"></div>
+  <div class="detail-layout">
+    <div class="detail-sidebar" id="detail-sidebar"></div>
+    <div class="detail-content" id="detail-content"></div>
   </div>
 </div>
 
@@ -5675,28 +5998,91 @@ comingSoonSystems.forEach(id => {
   };
 });
 
+// ── PROBLEM STATEMENTS ────────────────────────────────────
+const systemProblems = {
+  reddit:        'How do 430M users instantly read posts without the server rebuilding their feed each time?',
+  twitter:       'How does a single tweet reach 100M followers within seconds of being posted?',
+  bluesky:       'How do you build a social network where no single company controls your data?',
+  youtube:       'How does YouTube transcode an uploaded video into 20 formats and stream it to 2B users?',
+  spotify:       'How does Spotify stream 100M songs to 600M users with near-zero buffering?',
+  netflix:       "How does Netflix know what show you'll want to watch before you even search for it?",
+  twitch:        'How do you live-stream video with under 1s delay to 2.5M concurrent viewers?',
+  slack:         'How does a message you type reach 10,000 teammates across the world in real time?',
+  whatsapp:      'How does WhatsApp deliver 100B messages per day, even to phones that are offline?',
+  googledocs:    'How can 50 people edit the same document simultaneously without overwriting each other?',
+  airbnb:        'How do you show real-time availability across 7M listings and prevent any double-booking?',
+  tinder:        'How does Tinder pick which 500 profiles to show you today from 75M users nearby?',
+  payment:       'How does a payment reach the merchant in under 2 seconds with zero risk of charging twice?',
+  stockexchange: 'How does an exchange match millions of buy/sell orders with microsecond-level precision?',
+  bookmyshow:    'How do you sell 50,000 concert tickets in 30 seconds with zero seats double-booked?',
+  s3:            'How does S3 store 100 trillion objects and retrieve any one of them in under 100ms?',
+  lambda:        'How does AWS run your code in milliseconds without you managing a single server?',
+  kafka:         'How does one system reliably process 1 million events per second from 100 producers?',
+  urlshortener:  'How do you redirect 10 billion clicks per day in under 10ms using a 7-character code?',
+  ratelimiter:   'How do you stop one bad actor from bringing your entire API down for every user?',
+  notifications: 'How does one event trigger the right notification on the right device in milliseconds?',
+  chatgpt:       'How do you stream AI responses to millions of users without the servers collapsing?',
+  uber:          'How does Uber match you with the nearest driver in under 3 seconds, anywhere in the world?',
+  airtag:        "How does an AirTag locate itself using strangers' iPhones while preserving everyone's privacy?",
+  typeahead:     "How does Google show 5 completions before you've finished typing a single word?",
+  segment:       'How does one analytics event from your app fan out to 100 different tools in real time?',
+};
+
 // ── NAVIGATION ────────────────────────────────────────────
+let _currentSys = null;
 
 function openSystem(id) {
-  const sys = systems[id];
-  document.getElementById('detail-title').textContent = sys.name;
-  document.getElementById('detail-sub').textContent   = sys.sub;
+  _currentSys = systems[id];
+  _currentSys._id = id;
 
-  const list = document.getElementById('steps-list');
-  list.innerHTML = sys.steps.map((step, i) => `
-    <div class="step-item ${i === 0 ? 'active open' : ''}" id="step-${i}">
-      <div class="step-header" onclick="toggleStep(${i})">
-        <div class="step-num">${i + 1}</div>
-        <div class="step-name">${step.name}</div>
-        <div class="step-chevron">▼</div>
-      </div>
-      <div class="step-body">${step.content}</div>
-    </div>
-  `).join('');
+  document.getElementById('detail-breadcrumb-name').textContent = _currentSys.name;
+
+  renderSidebar(0);
 
   document.getElementById('home-page').style.display   = 'none';
   document.getElementById('detail-page').style.display = 'block';
   window.scrollTo(0, 0);
+}
+
+function renderSidebar(activeIdx) {
+  const sys = _currentSys;
+  const problem = systemProblems[sys._id] || sys.sub;
+
+  document.getElementById('detail-sidebar').innerHTML = `
+    <div class="sidebar-header">
+      <div class="sidebar-sys-name">${sys.name}</div>
+      <div class="sidebar-problem">${problem}</div>
+    </div>
+    <div class="sidebar-steps-label">Course Steps</div>
+    <div class="sidebar-steps">
+      ${sys.steps.map((step, i) => `
+        <div class="sidebar-step ${i === activeIdx ? 'active' : ''}" onclick="selectStep(${i})">
+          <div class="sidebar-step-num">${i + 1}</div>
+          <div class="sidebar-step-name">${step.name}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  renderContent(activeIdx);
+}
+
+function selectStep(i) {
+  document.querySelectorAll('.sidebar-step').forEach((el, idx) => {
+    el.classList.toggle('active', idx === i);
+  });
+  renderContent(i);
+  document.getElementById('detail-content').scrollTop = 0;
+}
+
+function renderContent(i) {
+  const step = _currentSys.steps[i];
+  const total = _currentSys.steps.length;
+  document.getElementById('detail-content').innerHTML = `
+    <div class="content-step-meta">Step ${i + 1} of ${total}</div>
+    <div class="content-step-title">${step.name}</div>
+    ${step.content}
+  `;
 }
 
 function goHome() {
@@ -5706,25 +6092,10 @@ function goHome() {
 }
 
 function switchTab(e, tabId) {
-  // update buttons
   e.target.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   e.target.classList.add('active');
-  // update panels
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + tabId).classList.add('active');
-}
-
-function toggleStep(i) {
-  const item = document.getElementById('step-' + i);
-  const wasOpen = item.classList.contains('open');
-  // close all
-  document.querySelectorAll('.step-item').forEach(el => {
-    el.classList.remove('open', 'active');
-  });
-  // toggle clicked
-  if (!wasOpen) {
-    item.classList.add('open', 'active');
-  }
 }
 
 </script>
