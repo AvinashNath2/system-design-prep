@@ -775,7 +775,8 @@
       DevLearn
     </a>
     <div class="nav-links">
-      <a class="nav-link active">System Design</a>
+      <a class="nav-link active" data-section="sysdesign" onclick="showSection('sysdesign')">System Design</a>
+      <a class="nav-link" data-section="devops" onclick="showSection('devops')">DevOps</a>
       <a class="nav-link">Algorithms</a>
       <a class="nav-link">Networking</a>
       <a class="nav-link">OS Concepts</a>
@@ -1238,11 +1239,27 @@
       </div>
     </div>
 
-    <!-- ── DevOps & Cloud-Native ── -->
-    <div class="biz-group">
-      <div class="biz-label">DevOps &amp; Cloud-Native</div>
-      <div class="systems-grid">
+  </div>
+</div>
 
+<!-- ══════════════ DEVOPS PAGE ══════════════ -->
+<div id="devops-page" style="display:none;">
+  <div class="hero" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#1a2e50 100%);">
+    <div class="hero-inner">
+      <div class="hero-eyebrow" style="color:#7dd3fc;">DevOps &amp; Cloud-Native · Container Orchestration</div>
+      <h1 class="hero-title" style="color:#f0f9ff;">Run containers at scale.<br>Not just on your laptop.</h1>
+      <p class="hero-sub" style="color:#94a3b8;">Kubernetes is the operating system of the cloud. Learn how it works internally, what every resource does, and how to use it confidently in any environment.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="stat-num" style="color:#7dd3fc;">1</span><span class="stat-label" style="color:#94a3b8;">Deep Dive</span></div>
+        <div class="hero-stat"><span class="stat-num" style="color:#7dd3fc;">12</span><span class="stat-label" style="color:#94a3b8;">Steps</span></div>
+        <div class="hero-stat"><span class="stat-num" style="color:#7dd3fc;">0</span><span class="stat-label" style="color:#94a3b8;">Dependencies</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="systems-container">
+    <div class="biz-group">
+      <div class="biz-label">Container Orchestration</div>
+      <div class="systems-grid">
         <div class="system-card done" onclick="openSystem('k8s')">
           <div class="card-media" style="background:#326CE5;">
             <img src="https://www.google.com/s2/favicons?domain=kubernetes.io&sz=64" alt="Kubernetes">
@@ -1257,10 +1274,8 @@
             <div class="card-tags"><span class="card-tag">Orchestration</span><span class="card-tag">Pods</span><span class="card-tag">Auto-scaling</span><span class="card-tag">Self-healing</span></div>
           </div>
         </div>
-
       </div>
     </div>
-
   </div>
 </div>
 
@@ -1270,7 +1285,7 @@
     <button class="back-btn" onclick="goHome()">← Back</button>
     <div class="detail-breadcrumb">
       CS <span class="bc-sep">›</span>
-      System Design <span class="bc-sep">›</span>
+      <span id="detail-section-label">System Design</span> <span class="bc-sep">›</span>
       <span class="bc-current" id="detail-breadcrumb-name"></span>
     </div>
   </div>
@@ -8328,16 +8343,35 @@ const systemProblems = {
 
 // ── NAVIGATION ────────────────────────────────────────────
 let _currentSys = null;
+let _activeSection = 'sysdesign';
+
+const _sectionLabels = {
+  sysdesign: 'System Design',
+  devops:    'DevOps & Cloud-Native',
+};
+
+function showSection(section) {
+  _activeSection = section;
+  document.getElementById('home-page').style.display   = section === 'sysdesign' ? 'block' : 'none';
+  document.getElementById('devops-page').style.display = section === 'devops'    ? 'block' : 'none';
+  document.getElementById('detail-page').style.display = 'none';
+  document.querySelectorAll('.nav-link[data-section]').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+  window.scrollTo(0, 0);
+}
 
 function openSystem(id) {
   const extras = systemExtras[id] || [];
   _currentSys = { ...systems[id], steps: [...systems[id].steps, ...extras], _id: id };
 
   document.getElementById('detail-breadcrumb-name').textContent = _currentSys.name;
+  document.getElementById('detail-section-label').textContent = _sectionLabels[_activeSection] || 'System Design';
 
   renderSidebar(0);
 
   document.getElementById('home-page').style.display   = 'none';
+  document.getElementById('devops-page').style.display = 'none';
   document.getElementById('detail-page').style.display = 'block';
   window.scrollTo(0, 0);
 }
@@ -8424,9 +8458,7 @@ function addCapTooltips(container) {
 }
 
 function goHome() {
-  document.getElementById('detail-page').style.display = 'none';
-  document.getElementById('home-page').style.display   = 'block';
-  window.scrollTo(0, 0);
+  showSection(_activeSection);
 }
 
 function switchTab(e, tabId) {
