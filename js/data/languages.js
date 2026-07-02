@@ -74,89 +74,443 @@ cargo check     # type-check without compiling (fast)</pre>
 
     // ── STEP 2 ──────────────────────────────────────────────
     { name: 'Variables, Types & Mutability', content: `
+
+      <!-- ── 1. let vs let mut ── -->
       <div class="content-section">
-        <div class="content-label">let vs let mut — Immutable by Default</div>
+        <div class="content-label">1 · let vs let mut — Immutable by Default</div>
+        <div class="insight-box" style="border-left-color:#326CE5;background:#f0f4ff;">
+          In Rust, <strong>every variable is immutable by default</strong>. You must explicitly opt in to mutation with <code>mut</code>. This is opposite to most languages (Python, JavaScript, Go) where variables are mutable unless you say otherwise.<br><br>
+          Why? Immutability is the safer default — accidental mutation is a common source of bugs, especially in concurrent code. The compiler enforces it, so you can trust a non-mut binding is never changed.
+        </div>
         <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">fn main() {
-    let x = 5;          // immutable — x can never change
-    // x = 6;          // ERROR: cannot assign twice to immutable variable
 
-    let mut y = 5;      // mutable — y can change
-    y = 6;              // OK
-    println!("{y}");    // 6
+    // ── IMMUTABLE ──────────────────────────────
+    let x = 5;
+    println!("x = {x}");   // 5
 
-    // WHY immutable by default?
-    // Prevents accidental mutation. Makes code easier to reason about.
-    // The compiler can also make optimisations knowing a value never changes.
+    // x = 10;   // COMPILER ERROR:
+    //           // cannot assign twice to immutable variable x
+    //           // help: consider making this binding mutable: mut x
+
+    // ── MUTABLE ────────────────────────────────
+    let mut y = 5;
+    println!("y = {y}");   // 5
+    y = 10;                 // OK — y was declared mut
+    y += 1;                 // compound assignment also works
+    println!("y = {y}");   // 11
+
+    // ── PRACTICAL GUIDELINE ────────────────────
+    // Start with let. Switch to let mut only when you actually need to mutate.
+    // If you see let mut but the variable is never changed,
+    // the compiler warns you: "variable does not need to be mutable".
 }</pre>
+        <table class="nfr-table" style="margin-top:12px;">
+          <tr><td><strong>let x = 5</strong></td><td>Immutable binding. x is fixed at 5 forever in this scope. Compiler error if you try to change it.</td></tr>
+          <tr><td><strong>let mut x = 5</strong></td><td>Mutable binding. x can be reassigned. The mut applies to the binding, not to the value.</td></tr>
+          <tr><td><strong>Benefits of default immutability</strong></td><td>Easier reasoning — you can read code knowing a binding's value won't secretly change. Enables compiler optimisations. Essential for safe concurrency.</td></tr>
+        </table>
       </div>
+
+      <!-- ── 2. Type Inference ── -->
       <div class="content-section">
-        <div class="content-label">Scalar Types</div>
-        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Integers: i8 i16 i32 i64 i128 isize  (signed)
-//           u8 u16 u32 u64 u128 usize  (unsigned)
-let a: i32 = -42;          // default integer type
-let b: u64 = 1_000_000;   // underscores for readability
-let c: u8  = 255;          // max u8 value
+        <div class="content-label">2 · Type Inference — The Compiler Figures It Out</div>
+        <div class="insight-box">
+          Rust is statically typed — every variable has a type known at compile time. But unlike Java/C++ where you often write types everywhere, Rust's type inference engine usually figures out the type from context. You only need to annotate when it's ambiguous.
+        </div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Rust infers the type from the value
+let x = 42;          // inferred: i32  (default integer type)
+let y = 3.14;        // inferred: f64  (default float type)
+let flag = true;     // inferred: bool
+let letter = 'A';    // inferred: char
 
-// Floats: f32, f64
-let pi: f64 = 3.14159;    // default float type (f64)
-let e:  f32 = 2.718;
+// Explicit annotation — type goes after a colon
+let x: i64 = 42;
+let y: f32 = 3.14;
 
-// Boolean
-let is_ready: bool = true;
-let is_done = false;       // type inferred
+// Sometimes you MUST annotate — when inference is ambiguous
+let guess: u32 = "42".parse().unwrap();
+//         ^^^  without this, the compiler says:
+//              "type annotations needed — consider giving guess a type"
 
-// Character — Unicode scalar, 4 bytes
-let ch: char = 'Z';
-let emoji: char = '🦀';   // Rust mascot!
-
-// isize/usize: pointer-sized (64-bit on 64-bit machine)
-// Used for indexing: vec[i] requires usize index</pre>
+// Inference works across lines — compiler looks at HOW you use the variable
+let mut list = Vec::new();  // type unknown yet
+list.push(1);               // now compiler knows: Vec&lt;i32&gt;
+list.push(2);</pre>
       </div>
+
+      <!-- ── 3. Integer Types ── -->
       <div class="content-section">
-        <div class="content-label">Shadowing — Re-declare the Same Name</div>
-        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">let x = 5;
-let x = x + 1;      // shadows the previous x — creates a NEW binding
+        <div class="content-label">3 · Integer Types — Signed &amp; Unsigned</div>
+        <div class="insight-box" style="border-left-color:#10b981;background:#f0fdf4;">
+          Rust has 12 integer types. Choosing the right one matters for memory efficiency and correctness. The naming convention is simple: <strong>i</strong> = signed (can be negative), <strong>u</strong> = unsigned (non-negative only), followed by the bit width.
+        </div>
+        <table class="nfr-table">
+          <tr style="background:#f8f8f8;"><td style="font-weight:800;">Type</td><td style="font-weight:800;">Size</td><td style="font-weight:800;">Range</td><td style="font-weight:800;">When to use</td></tr>
+          <tr><td><strong>i8</strong></td><td>1 byte</td><td>-128 to 127</td><td>Tiny signed values, audio samples</td></tr>
+          <tr><td><strong>i16</strong></td><td>2 bytes</td><td>-32,768 to 32,767</td><td>Small signed values</td></tr>
+          <tr><td><strong style="color:#326CE5;">i32</strong></td><td>4 bytes</td><td>-2.1B to 2.1B</td><td><strong>Default</strong> — use when unsure</td></tr>
+          <tr><td><strong>i64</strong></td><td>8 bytes</td><td>-9.2 × 10¹⁸ to 9.2 × 10¹⁸</td><td>Timestamps, large counters</td></tr>
+          <tr><td><strong>i128</strong></td><td>16 bytes</td><td>±1.7 × 10³⁸</td><td>Cryptography, huge numbers</td></tr>
+          <tr><td><strong>isize</strong></td><td>pointer-sized</td><td>platform dependent</td><td>Pointer arithmetic, offsets</td></tr>
+          <tr><td><strong>u8</strong></td><td>1 byte</td><td>0 to 255</td><td>Bytes, pixel values, binary data</td></tr>
+          <tr><td><strong>u16</strong></td><td>2 bytes</td><td>0 to 65,535</td><td>Port numbers, small unsigned</td></tr>
+          <tr><td><strong>u32</strong></td><td>4 bytes</td><td>0 to 4.2B</td><td>IDs, counts that are never negative</td></tr>
+          <tr><td><strong>u64</strong></td><td>8 bytes</td><td>0 to 1.8 × 10¹⁹</td><td>File sizes, large unsigned counts</td></tr>
+          <tr><td><strong>u128</strong></td><td>16 bytes</td><td>0 to 3.4 × 10³⁸</td><td>UUIDs, very large counts</td></tr>
+          <tr><td><strong style="color:#326CE5;">usize</strong></td><td>pointer-sized</td><td>0 to max pointer</td><td><strong>Array/Vec indices</strong> — always use this for indexing</td></tr>
+        </table>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:12px 0;">// Integer literals — multiple formats
+let decimal     = 1_000_000;      // underscores make large numbers readable
+let hex         = 0xFF;           // hexadecimal  (255)
+let octal       = 0o77;           // octal        (63)
+let binary      = 0b1111_0000;    // binary       (240)
+let byte: u8    = b'A';           // byte literal (65) — u8 only
+
+// Type suffix in the literal itself
+let x = 42u64;                    // u64 without separate annotation
+let y = -10i8;                    // i8
+
+// Integer operations
+let sum    = 5 + 10;              // 15
+let diff   = 95 - 4;              // 91
+let prod   = 4 * 30;              // 120
+let quot   = 56 / 5;              // 11  (integer division — truncates)
+let remain = 56 % 5;              // 1
+
+// usize for indexing — required by the compiler
+let v = vec![10, 20, 30];
+let i: usize = 2;
+println!("{}", v[i]);             // 30
+// v[2i32] — ERROR: index must be usize, not i32</pre>
+      </div>
+
+      <!-- ── 4. Float Types ── -->
+      <div class="content-section">
+        <div class="content-label">4 · Floating-Point Types</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// f32 — 32-bit float  (single precision, ~7 decimal digits)
+// f64 — 64-bit float  (double precision, ~15 decimal digits)  ← DEFAULT
+
+let x = 2.0;           // inferred: f64 (always default to f64)
+let y: f32 = 3.0;      // explicit f32
+
+// Float operations
+let sum  = 2.5 + 1.5;  // 4.0
+let diff = 5.0 - 2.0;  // 3.0
+let prod = 2.0 * 4.5;  // 9.0
+let quot = 9.0 / 2.0;  // 4.5  (NOT integer division — 4.5 not 4)
+let rem  = 9.0 % 2.0;  // 1.0
+
+// Common float constants and methods
+let pi = std::f64::consts::PI;     // 3.141592653589793
+let inf = f64::INFINITY;
+let nan = f64::NAN;
+
+println!("{}", 2.0f64.sqrt());     // 1.4142135623730951
+println!("{}", 8.0f64.cbrt());     // 2.0  (cube root)
+println!("{}", 100.0f64.log10());  // 2.0
+println!("{:.2}", 3.14159f64);     // 3.14  (format to 2 decimal places)
+
+// GOTCHA: floats are NOT directly comparable with ==
+// Use an epsilon check instead:
+let a = 0.1 + 0.2;
+let b = 0.3;
+// a == b might be false due to floating point representation
+println!("{}", (a - b).abs() &lt; f64::EPSILON);  // true — correct way</pre>
+      </div>
+
+      <!-- ── 5. Boolean ── -->
+      <div class="content-section">
+        <div class="content-label">5 · Boolean</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">let t: bool = true;
+let f: bool = false;
+
+// Logical operators
+let and = true && false;    // false   (short-circuit: if left is false, right skipped)
+let or  = true || false;    // true    (short-circuit: if left is true, right skipped)
+let not = !true;            // false
+
+// Boolean from comparisons
+let x = 5;
+let is_big    = x > 3;     // true
+let is_even   = x % 2 == 0; // false
+let in_range  = x >= 1 && x <= 10;  // true
+
+// Booleans ARE NOT integers in Rust (unlike C)
+// You cannot do: if 1 { }   — ERROR: expected bool, found integer
+// You cannot do: true + true — ERROR: cannot add bool to bool
+
+// Boolean in if expressions — if is an EXPRESSION that returns a value
+let msg = if is_big { "big" } else { "small" };
+println!("{msg}");    // "big"
+
+// bool is exactly 1 byte in memory
+println!("{}", std::mem::size_of::&lt;bool&gt;());  // 1</pre>
+      </div>
+
+      <!-- ── 6. char ── -->
+      <div class="content-section">
+        <div class="content-label">6 · char — Unicode Scalar Value</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// char uses SINGLE quotes. Strings use double quotes.
+let c1: char = 'z';
+let c2: char = 'Z';
+let c3: char = '0';
+let c4: char = '🦀';   // full Unicode — char is 4 bytes (u32-sized)
+let c5: char = '中';   // Chinese character — works fine
+
+// char is 4 bytes — every Unicode scalar value fits
+println!("{}", std::mem::size_of::&lt;char&gt;());  // 4
+
+// char methods
+println!("{}", 'a'.is_alphabetic());   // true
+println!("{}", '5'.is_numeric());      // true
+println!("{}", 'A'.is_uppercase());    // true
+println!("{}", 'a'.to_uppercase().next().unwrap());  // 'A'
+
+// char ↔ integer conversion
+let ascii_a = 'A' as u32;    // 65
+let back = char::from(65u8);  // 'A'
+
+// IMPORTANT: "hello" is a &str (string), 'h' is a char (single character)
+// Strings are NOT arrays of chars in Rust — they're UTF-8 bytes
+// This is important for string indexing (you can't do s[0] on a String)</pre>
+      </div>
+
+      <!-- ── 7. Shadowing ── -->
+      <div class="content-section">
+        <div class="content-label">7 · Shadowing — Re-declare the Same Name</div>
+        <div class="insight-box" style="border-left-color:#f59e0b;background:#fffbeb;">
+          Shadowing means declaring a new variable with the same name as an existing one using <code>let</code>. The new variable <em>shadows</em> the old one — you can't access the old one anymore in that scope. This is NOT the same as mutation.
+        </div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// ── BASIC SHADOWING ────────────────────────────────────────
+let x = 5;
+let x = x + 1;      // new binding — shadows previous x. Old x is gone.
 let x = x * 2;      // shadows again
-println!("{x}");     // 12
+println!("{x}");    // 12
 
-// Key difference from mut: shadowing can CHANGE THE TYPE
-let spaces = "   ";          // type: &str
-let spaces = spaces.len();   // type: usize — totally different type, same name
-// With mut you cannot change the type of a variable</pre>
+// ── KEY SUPERPOWER: CAN CHANGE THE TYPE ────────────────────
+let spaces = "   ";           // type: &str  (string slice)
+let spaces = spaces.len();    // type: usize (completely different type!)
+println!("{spaces}");         // 3
+
+// With mut this would be ILLEGAL:
+// let mut spaces = "   ";
+// spaces = spaces.len();  // ERROR: expected &str, found usize
+
+// ── SHADOWING IN A BLOCK ────────────────────────────────────
+let x = 10;
+{
+    let x = x * 5;     // inner shadow — only exists inside this block
+    println!("{x}");   // 50
+}
+println!("{x}");       // 10  — outer x is back, inner shadow is gone
+
+// ── REAL WORLD USE: PARSING INPUT ──────────────────────────
+// Often you read input as a string, then shadow it with the parsed number
+let input = "42";                           // type: &str
+let input: u32 = input.trim().parse()       // type: u32 — same name, new type
+    .expect("must be a number");
+println!("Doubled: {}", input * 2);         // 84</pre>
+        <table class="nfr-table" style="margin-top:12px;">
+          <tr><td></td><td><strong>let mut</strong></td><td><strong>Shadowing (let)</strong></td></tr>
+          <tr><td>Change value</td><td>✓ Yes</td><td>✓ Yes (creates new binding)</td></tr>
+          <tr><td>Change type</td><td>✗ No</td><td>✓ Yes</td></tr>
+          <tr><td>Old value accessible</td><td>✓ Yes (it changed)</td><td>✗ No (shadowed = gone in scope)</td></tr>
+          <tr><td>Syntax</td><td>x = new_value</td><td>let x = new_value</td></tr>
+        </table>
       </div>
-      <div class="content-section">
-        <div class="content-label">Compound Types</div>
-        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Tuple — fixed length, different types, stack-allocated
-let tup: (i32, f64, bool) = (500, 6.4, true);
-let (x, y, z) = tup;          // destructure
-println!("{}", tup.0);        // access by index: 500
 
-// Array — fixed length, SAME type, stack-allocated
+      <!-- ── 8. Tuple ── -->
+      <div class="content-section">
+        <div class="content-label">8 · Tuples — Fixed-Length, Mixed Types</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Tuples group values of DIFFERENT types — size fixed at compile time
+let tup: (i32, f64, bool, char) = (500, 6.4, true, 'z');
+
+// Access by index (dot notation)
+let five_hundred = tup.0;   // 500 — i32
+let six_point_four = tup.1; // 6.4 — f64
+let is_true = tup.2;        // true — bool
+
+// Destructuring — unpack all at once
+let (a, b, c, d) = tup;
+println!("{a}, {b}, {c}, {d}");   // 500, 6.4, true, z
+
+// Destructuring with _ to ignore fields you don't need
+let (first, _, _, last) = tup;
+
+// Nested tuples
+let nested: ((i32, i32), bool) = ((1, 2), true);
+println!("{}", (nested.0).1);    // 2
+
+// Unit tuple () — empty tuple, zero size
+// It's the return type of functions that don't explicitly return anything
+let unit: () = ();
+// fn foo() { }  — implicitly returns ()
+
+// Tuples in function return — return multiple values
+fn min_max(v: &[i32]) -> (i32, i32) {
+    (*v.iter().min().unwrap(), *v.iter().max().unwrap())
+}
+let (lo, hi) = min_max(&[3, 1, 4, 1, 5, 9, 2, 6]);
+println!("min={lo}, max={hi}");   // min=1, max=9</pre>
+      </div>
+
+      <!-- ── 9. Array ── -->
+      <div class="content-section">
+        <div class="content-label">9 · Arrays — Fixed-Length, Same Type, Stack Memory</div>
+        <div class="insight-box">
+          Arrays in Rust have a <strong>fixed length known at compile time</strong>. They live entirely on the stack — no heap allocation. For growable collections, use <code>Vec&lt;T&gt;</code> (covered in the Collections step).
+        </div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Type annotation: [element_type; length]
 let arr: [i32; 5] = [1, 2, 3, 4, 5];
-let first = arr[0];
-let zeroes = [0; 10];          // 10 zeroes
 
-// arr[10] — panics at runtime with clear message
-// (not silent corruption like C)
+// Shorthand: fill with the same value
+let zeroes = [0; 10];      // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+let fives  = [5u8; 4];    // [5, 5, 5, 5] — four u8 fives
 
-// Slice — view into an array or Vec
-let slice: &[i32] = &arr[1..4];   // elements 1,2,3</pre>
+// Indexing — zero based
+let first = arr[0];        // 1
+let last  = arr[4];        // 5
+
+// Length
+println!("{}", arr.len()); // 5
+
+// SAFE bounds checking — Rust panics with a message instead of UB
+// arr[10];   // thread 'main' panicked at 'index out of bounds: the len is 5 but the index is 10'
+// (In C: silent memory corruption or crash with no useful message)
+
+// Iterating over an array
+for elem in arr {
+    print!("{elem} ");   // 1 2 3 4 5
+}
+
+for (i, elem) in arr.iter().enumerate() {
+    println!("arr[{i}] = {elem}");
+}
+
+// Mutable array
+let mut scores = [90, 85, 78, 92, 88];
+scores[2] = 95;             // update element
+scores.sort();              // sort in place — [78, 85, 88, 90, 95] (with use std)
+
+// Arrays as function parameters (passed by reference to avoid copying)
+fn sum(arr: &[i32]) -> i32 {    // &[i32] is a SLICE — works for any length
+    arr.iter().sum()
+}
+println!("{}", sum(&arr));   // 15
+println!("{}", sum(&fives)); // also works</pre>
       </div>
+
+      <!-- ── 10. Slices ── -->
       <div class="content-section">
-        <div class="content-label">Constants and Statics</div>
-        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// const: compile-time constant, type annotation required, UPPERCASE by convention
-const MAX_POINTS: u32 = 100_000;
+        <div class="content-label">10 · Slices — Views Into Sequences</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// A slice is a REFERENCE to a contiguous part of a collection
+// It does NOT own the data — it borrows it
+let arr = [1, 2, 3, 4, 5];
 
-// static: global variable with 'static lifetime
-// (avoid where possible — global mutable state is hard to reason about)
-static GREETING: &str = "hello";</pre>
+let all   = &arr[..];     // entire array
+let first3 = &arr[..3];   // [1, 2, 3]  — indices 0,1,2
+let last2  = &arr[3..];   // [4, 5]     — from index 3 to end
+let middle = &arr[1..4];  // [2, 3, 4]  — indices 1,2,3
+
+// Range syntax
+// [..n]   — 0 to n-1
+// [n..]   — n to end
+// [a..b]  — a to b-1 (exclusive end)
+// [a..=b] — a to b   (inclusive end)
+
+// Slices know their length — not just a raw pointer
+println!("{}", middle.len());  // 3
+
+// &str is a string slice — same concept
+let s = String::from("hello world");
+let hello: &str = &s[0..5];    // "hello"
+let world: &str = &s[6..11];   // "world"
+
+// Why slices are powerful: write one function that works on
+// arrays, Vecs, or any contiguous sequence
+fn print_first_two(items: &[i32]) {
+    if items.len() >= 2 {
+        println!("{} {}", items[0], items[1]);
+    }
+}
+print_first_two(&arr);                        // from array
+print_first_two(&vec![10, 20, 30]);           // from Vec</pre>
       </div>
+
+      <!-- ── 11. const and static ── -->
+      <div class="content-section">
+        <div class="content-label">11 · const vs static</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// const — compile-time constant
+// Rules: must have type annotation, SCREAMING_SNAKE_CASE, no runtime value
+const MAX_RETRIES: u32 = 3;
+const PI: f64 = 3.14159265358979;
+const BUFFER_SIZE: usize = 1024 * 64;    // expressions allowed if computable at compile time
+
+// const is INLINED everywhere it's used — like a #define in C
+// No memory address. Using MAX_RETRIES in 10 places = 10 literal 3s in the binary.
+
+// static — one fixed memory location that lives for the whole program
+static APP_NAME: &str = "DevLearn";
+static mut COUNTER: u32 = 0;   // mutable static — UNSAFE to access/modify
+
+// Accessing static is instant — it's just reading from a fixed address
+println!("{APP_NAME}");
+
+// Modifying mutable static requires unsafe block (dangerous — no thread safety)
+unsafe { COUNTER += 1; }   // you rarely need this in practice</pre>
+        <table class="nfr-table" style="margin-top:12px;">
+          <tr><td></td><td><strong>const</strong></td><td><strong>static</strong></td></tr>
+          <tr><td>Memory location</td><td>Inlined — no address</td><td>One fixed address</td></tr>
+          <tr><td>Can be mutable</td><td>No</td><td>Yes (but unsafe)</td></tr>
+          <tr><td>Type annotation</td><td>Required</td><td>Required</td></tr>
+          <tr><td>Use for</td><td>Numeric limits, config values</td><td>Global state (rare), &amp;str constants</td></tr>
+          <tr><td>Convention</td><td>SCREAMING_SNAKE_CASE</td><td>SCREAMING_SNAKE_CASE</td></tr>
+        </table>
+      </div>
+
+      <!-- ── 12. Type Conversion ── -->
+      <div class="content-section">
+        <div class="content-label">12 · Type Conversion — No Implicit Coercion</div>
+        <div class="insight-box" style="border-left-color:#ef4444;background:#fff5f5;">
+          Rust <strong>never implicitly converts</strong> between numeric types. In C, mixing int and long is automatic. In Rust, you must convert explicitly. This prevents silent precision loss or sign errors.
+        </div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// as — explicit cast (can truncate or change sign — be careful)
+let x: i32 = 300;
+let y = x as i16;     // 44  — 300 wraps around (300 - 256 = 44)  TRUNCATION!
+let z = x as u8;      // 44  — same truncation
+let f = x as f64;     // 300.0 — safe widening
+
+let pi: f64 = 3.99;
+let n = pi as i32;    // 3 — truncates decimal (does NOT round)
+
+// Safe conversions — use From/Into (only for lossless conversions)
+let small: i32 = 42;
+let big: i64 = i64::from(small);     // i32 always fits in i64 — safe
+let big: i64 = small.into();         // same thing with Into syntax
+
+// Fallible conversions — use try_from / try_into
+use std::convert::TryFrom;
+let big: i64 = 1000;
+let small = i32::try_from(big);    // Ok(1000)  — fits
+let big2: i64 = 9_999_999_999;
+let small2 = i32::try_from(big2);  // Err(TryFromIntError) — doesn't fit
+
+// String conversions
+let n: i32 = 42;
+let s: String = n.to_string();        // 42 → "42"
+let back: i32 = s.parse().unwrap();   // "42" → 42</pre>
+      </div>
+
+      <!-- ── Cross Q&A ── -->
       <div class="content-section">
         <div class="content-label">Cross Q&amp;A</div>
         <table class="nfr-table">
-          <tr><td><strong>Q: Can I use a variable before initialising it?</strong></td><td>No — Rust enforces definite assignment. <code>let x: i32; println!("{x}");</code> is a compile error: "use of possibly-uninitialized variable". You must initialise before use.</td></tr>
-          <tr><td><strong>Q: What happens on integer overflow?</strong></td><td>In debug mode: panic (crash with message). In release mode: wraps around (two's complement). Use checked_add(), saturating_add(), or wrapping_add() if you need explicit control.</td></tr>
-          <tr><td><strong>Q: Why does Rust need a type annotation for const but not let?</strong></td><td>const is evaluated at compile time — the compiler needs the type explicitly so it knows what operations are valid during const evaluation. let uses type inference from context at the use site.</td></tr>
+          <tr><td><strong>Q: Can I use a variable before initialising it?</strong></td><td>No. Rust enforces definite assignment. <code>let x: i32;</code> then using <code>x</code> is a compile error: "use of possibly-uninitialized variable". However, you can declare without a value and assign later — as long as the compiler can prove it's always assigned before use in all code paths.</td></tr>
+          <tr><td><strong>Q: What happens on integer overflow?</strong></td><td>In debug mode: runtime panic with a clear message ("attempt to add with overflow"). In release mode (--release): silent wrapping (two's complement). For explicit control: <code>checked_add()</code> returns Option, <code>saturating_add()</code> clamps at min/max, <code>wrapping_add()</code> always wraps.</td></tr>
+          <tr><td><strong>Q: Why is f64 the default float and not f32?</strong></td><td>On modern 64-bit CPUs, f64 operations are no slower than f32 (both are native FPU operations). f64 gives ~15 decimal digits of precision vs ~7 for f32. You only choose f32 when memory is tight (e.g. graphics card buffers where you're storing millions of floats) or when the API requires it.</td></tr>
+          <tr><td><strong>Q: Why can't I index a String with s[0]?</strong></td><td>Strings in Rust are stored as UTF-8 bytes. A character might be 1, 2, 3, or 4 bytes. Index 0 would give you a byte, not a character — and the first "character" might span multiple bytes. Rust refuses to give you a potentially meaningless index. Use s.chars().nth(0) for character access or &s[0..n] for byte slices.</td></tr>
+          <tr><td><strong>Q: What is the difference between String and &str?</strong></td><td>String is a heap-allocated, growable, owned string. &str is a string slice — a borrowed view into a string (anywhere: heap, stack, binary). Use &str in function parameters when you only need to read. Return String when you're creating new string data. The golden rule: prefer &str for read-only, String for owned data you'll mutate or return.</td></tr>
+          <tr><td><strong>Q: Are Rust's arrays faster than Vecs?</strong></td><td>Arrays can be faster because: (1) stack allocation is faster than heap, (2) the compiler knows the exact size at compile time enabling optimisations, (3) no pointer indirection. But Vec is far more flexible. In practice: use arrays for small, fixed collections (coordinates, RGB, small buffers). Use Vec for everything else.</td></tr>
         </table>
       </div>
     ` },
