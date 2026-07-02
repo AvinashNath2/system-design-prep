@@ -1437,6 +1437,274 @@ roleRef:
     ` },
   ],
 
+  rust: [
+    { name: 'Smart Pointers', content: `
+      <div class="content-section">
+        <div class="content-label">Box&lt;T&gt; — Heap Allocation</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Box allocates a value on the heap and stores a pointer to it on the stack
+let b = Box::new(5);
+println!("{}", *b);   // Deref coercion — use like i32
+
+// Main use case: recursive types (can't have infinite size on stack)
+enum List {
+    Cons(i32, Box&lt;List&gt;),
+    Nil,
+}
+let list = List::Cons(1, Box::new(List::Cons(2, Box::new(List::Nil))));
+
+// Also: heap-allocated trait objects
+let boxed: Box&lt;dyn std::fmt::Display&gt; = Box::new(42);
+println!("{boxed}");</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Rc&lt;T&gt; — Reference Counting (Single-threaded)</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">use std::rc::Rc;
+
+let a = Rc::new(String::from("hello"));
+let b = Rc::clone(&a);   // increments ref count — same heap data
+let c = Rc::clone(&a);
+
+println!("Count: {}", Rc::strong_count(&a));  // 3
+// All three read the same String. Freed when count reaches 0.</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">RefCell&lt;T&gt; — Interior Mutability</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">use std::cell::RefCell;
+
+let data = RefCell::new(vec![1, 2, 3]);
+data.borrow().iter().for_each(|n| print!("{n} "));
+data.borrow_mut().push(4);   // borrow rules checked at RUNTIME
+
+// Rc&lt;RefCell&lt;T&gt;&gt; — multiple owners + mutation (single-threaded)
+use std::rc::Rc;
+let shared = Rc::new(RefCell::new(0));
+let a = Rc::clone(&shared);
+*a.borrow_mut() += 10;
+println!("{}", shared.borrow());   // 10</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: Box vs Rc vs Arc?</strong></td><td>Box: single owner, heap allocation, zero overhead. Rc: multiple owners, single thread, ref-counted. Arc: multiple owners, multi-thread, atomic ref count (slightly slower than Rc).</td></tr>
+          <tr><td><strong>Q: When would RefCell panic?</strong></td><td>If you hold a borrow_mut() and then call borrow() or borrow_mut() again before releasing the first one — runtime equivalent of the compile-time borrow rules. In safe Rust you cannot cause UB, just a panic with a clear message.</td></tr>
+        </table>
+      </div>
+    ` },
+    { name: 'Modules & Cargo', content: `
+      <div class="content-section">
+        <div class="content-label">Modules — Organise Your Code</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// src/lib.rs or src/main.rs
+mod network {                       // inline module
+    pub mod http {
+        pub fn get(url: &str) -> String { format!("GET {url}") }
+        fn internal() {}            // private to this module
+    }
+}
+
+use crate::network::http;
+fn main() { println!("{}", http::get("https://example.com")); }
+
+// File-based modules:
+// src/network.rs          OR  src/network/mod.rs
+// src/network/http.rs
+
+// In main.rs / lib.rs:
+// mod network;   → compiler loads src/network.rs</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Cargo Workflow</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">cargo new my_app            # binary
+cargo new --lib my_lib      # library
+cargo run                   # build + run
+cargo test                  # all tests
+cargo check                 # fast type-check
+cargo clippy                # lint
+cargo fmt                   # format
+cargo build --release       # optimised binary
+cargo doc --open            # documentation</pre>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">[package]
+name    = "my_app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde   = { version = "1", features = ["derive"] }
+tokio   = { version = "1", features = ["full"] }
+anyhow  = "1"
+reqwest = { version = "0.11", features = ["json"] }</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Must-Know Crates</div>
+        <table class="nfr-table">
+          <tr><td><strong>serde + serde_json</strong></td><td>#[derive(Serialize, Deserialize)] — JSON, TOML, YAML, bincode. Most downloaded crate.</td></tr>
+          <tr><td><strong>tokio</strong></td><td>Async runtime. Required for async/await I/O. De facto standard.</td></tr>
+          <tr><td><strong>reqwest</strong></td><td>Async HTTP client. JSON, streaming, cookies, TLS.</td></tr>
+          <tr><td><strong>anyhow / thiserror</strong></td><td>anyhow for apps (easy error propagation). thiserror for libraries (typed errors).</td></tr>
+          <tr><td><strong>clap</strong></td><td>#[derive(Parser)] — full CLI from struct annotations.</td></tr>
+          <tr><td><strong>rayon</strong></td><td>.par_iter() — data parallelism across all CPU cores, zero config.</td></tr>
+          <tr><td><strong>sqlx</strong></td><td>Async SQL with compile-time checked queries (PostgreSQL, MySQL, SQLite).</td></tr>
+          <tr><td><strong>axum / actix-web</strong></td><td>Async web frameworks. axum: ergonomic, tower-based. actix-web: very high performance.</td></tr>
+        </table>
+      </div>
+    ` },
+    { name: 'Async / Await', content: `
+      <div class="content-section">
+        <div class="content-label">How Async Works</div>
+        <div class="insight-box" style="border-left-color:#326CE5;background:#f0f4ff;">
+          <strong>async fn</strong> returns a Future — a paused computation. <strong>.await</strong> resumes it. A runtime (Tokio) polls futures when they're ready. No thread blocked waiting for I/O — one thread handles thousands of concurrent connections.
+        </div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Cargo.toml: tokio = { version = "1", features = ["full"] }
+use tokio::time::{sleep, Duration};
+
+async fn fetch_data(id: u32) -> String {
+    sleep(Duration::from_millis(100)).await;   // non-blocking wait
+    format!("data-{id}")
+}
+
+#[tokio::main]
+async fn main() {
+    // Sequential — 300ms total
+    let a = fetch_data(1).await;
+    let b = fetch_data(2).await;
+    let c = fetch_data(3).await;
+
+    // Concurrent — ~100ms total
+    let (a, b, c) = tokio::join!(
+        fetch_data(1),
+        fetch_data(2),
+        fetch_data(3),
+    );
+    println!("{a} {b} {c}");
+}</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Real HTTP + JSON</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">use serde::Deserialize;
+#[derive(Deserialize, Debug)]
+struct Post { id: u32, title: String }
+
+#[tokio::main]
+async fn main() -> anyhow::Result&lt;()&gt; {
+    let post: Post = reqwest::get("https://jsonplaceholder.typicode.com/posts/1")
+        .await?.json().await?;
+    println!("{}: {}", post.id, post.title);
+    Ok(())
+}</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: async vs threads?</strong></td><td>Async: I/O-bound (HTTP, DB, file). Thousands of tasks on few threads. Threads: CPU-bound (compute, encryption). Use rayon for CPU parallelism.</td></tr>
+          <tr><td><strong>Q: Why do I need an external runtime?</strong></td><td>Rust's Future trait is runtime-agnostic. Tokio is one runtime; async-std, smol, embassy (embedded) are others. You choose the right runtime for your use case. Zero runtime in the language core = zero overhead for code that doesn't use async.</td></tr>
+        </table>
+      </div>
+    ` },
+    { name: 'Common Patterns', content: `
+      <div class="content-section">
+        <div class="content-label">Builder Pattern</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">struct Config { host: String, port: u16, timeout: u64 }
+struct ConfigBuilder { host: String, port: u16, timeout: u64 }
+
+impl ConfigBuilder {
+    fn new() -> Self { ConfigBuilder { host: "localhost".into(), port: 8080, timeout: 30 } }
+    fn host(mut self, h: &str) -> Self { self.host = h.into(); self }
+    fn port(mut self, p: u16)  -> Self { self.port = p; self }
+    fn build(self) -> Config { Config { host: self.host, port: self.port, timeout: self.timeout } }
+}
+
+let cfg = ConfigBuilder::new().host("api.example.com").port(443).build();</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Newtype Pattern — Type Safety</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">struct Metres(f64);
+struct Kilograms(f64);
+
+fn bmi(weight: Kilograms, height: Metres) -> f64 { weight.0 / (height.0 * height.0) }
+// bmi(height, weight) → compile error! Can't mix up units.</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">From / Into Conversions</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">struct Email(String);
+impl From&lt;String&gt; for Email {
+    fn from(s: String) -> Self { Email(s) }
+}
+impl From&lt;&str&gt; for Email {
+    fn from(s: &str) -> Self { Email(s.to_owned()) }
+}
+
+let e: Email = "user@example.com".into();  // Into given free by From impl
+let e = Email::from(String::from("user@example.com"));</pre>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Type State Pattern</div>
+        <pre style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Courier New',monospace;font-size:12.5px;padding:16px;border-radius:8px;line-height:1.9;overflow-x:auto;margin:10px 0;">// Encode state transitions in the type system — invalid states can't compile
+struct Locked;
+struct Unlocked;
+
+struct Safe&lt;State&gt; { contents: String, _state: std::marker::PhantomData&lt;State&gt; }
+
+impl Safe&lt;Locked&gt; {
+    fn new(contents: &str) -> Self {
+        Safe { contents: contents.into(), _state: std::marker::PhantomData }
+    }
+    fn unlock(self, _password: &str) -> Safe&lt;Unlocked&gt; {
+        Safe { contents: self.contents, _state: std::marker::PhantomData }
+    }
+}
+impl Safe&lt;Unlocked&gt; {
+    fn get_contents(&self) -> &str { &self.contents }
+    fn lock(self) -> Safe&lt;Locked&gt; {
+        Safe { contents: self.contents, _state: std::marker::PhantomData }
+    }
+}
+
+let safe = Safe::new("gold");
+// safe.get_contents();    // ERROR: method doesn't exist on Safe&lt;Locked&gt;
+let open = safe.unlock("1234");
+println!("{}", open.get_contents());   // OK
+let safe = open.lock();               // back to Locked</pre>
+      </div>
+    ` },
+    { name: 'Rust vs Other Languages', content: `
+      <div class="content-section">
+        <div class="content-label">Head-to-Head</div>
+        <table class="nfr-table">
+          <tr style="background:#f8f8f8;">
+            <td style="font-weight:800;">Aspect</td>
+            <td style="font-weight:800;color:#B7410E;">Rust</td>
+            <td style="font-weight:800;color:#555;">C++</td>
+            <td style="font-weight:800;color:#00ACD7;">Go</td>
+            <td style="font-weight:800;color:#3572A5;">Python</td>
+          </tr>
+          <tr><td><strong>Memory model</strong></td><td>Ownership (no GC, no manual free)</td><td>Manual (RAII helps)</td><td>GC</td><td>Ref counting + GC</td></tr>
+          <tr><td><strong>Safety</strong></td><td>Safe by default</td><td>Unsafe by default</td><td>Safe (GC)</td><td>Safe (GC)</td></tr>
+          <tr><td><strong>Performance</strong></td><td>C/C++ level</td><td>C/C++ level</td><td>~2-5x slower</td><td>~10-100x slower</td></tr>
+          <tr><td><strong>Concurrency</strong></td><td>Data races → compile error</td><td>UB possible</td><td>Goroutines, GC pauses</td><td>GIL limits parallelism</td></tr>
+          <tr><td><strong>Generics</strong></td><td>Monomorphized (zero-cost)</td><td>Templates (zero-cost)</td><td>Added Go 1.18</td><td>Dynamic (duck typing)</td></tr>
+          <tr><td><strong>Ecosystem</strong></td><td>Cargo + crates.io (excellent)</td><td>Fragmented (cmake, vcpkg)</td><td>Go modules (good)</td><td>pip (fragmented)</td></tr>
+          <tr><td><strong>Learning curve</strong></td><td>Steep (ownership model)</td><td>Very steep</td><td>Easy</td><td>Very easy</td></tr>
+        </table>
+      </div>
+      <div class="content-section">
+        <div class="content-label">When to Pick Each</div>
+        <table class="nfr-table">
+          <tr><td><strong style="color:#B7410E;">Pick Rust</strong></td><td>Systems programming. GC pauses unacceptable (real-time, games, networking). Replacing unsafe C/C++. WebAssembly. CLI tools (ripgrep, fd, exa). Embedded. Long-running services where memory predictability matters.</td></tr>
+          <tr><td><strong style="color:#00ACD7;">Pick Go</strong></td><td>Microservices and APIs. Team velocity matters. Simple concurrency model. Fast compile times. Devops tools (Docker, Kubernetes, Terraform are written in Go).</td></tr>
+          <tr><td><strong style="color:#3572A5;">Pick Python</strong></td><td>Data science, ML, scripting. Rapid prototyping. Ecosystem (NumPy, PyTorch, pandas). Glue code between systems. Performance not a primary concern.</td></tr>
+          <tr><td><strong style="color:#555;">Pick C++</strong></td><td>Game engines (Unreal). Existing C++ codebase. Maximum low-level control. Hardware-specific optimisations. Team is expert in C++.</td></tr>
+        </table>
+      </div>
+      <div class="content-section">
+        <div class="content-label">Discord's Real Case Study</div>
+        <div class="insight-box">
+          Discord's Read States service (tracks which messages you've read) was in Go. At 5M+ concurrent users, Go's GC caused latency spikes every 2 minutes — 99th percentile jumped from ~10ms to ~400ms. Memory use: ~4GB.<br><br>
+          After rewriting in Rust: latency consistently under 10ms (no GC spikes). Memory dropped to ~400MB. Same workload, 10× less memory, no latency spikes.<br><br>
+          <strong>Lesson:</strong> Go's GC is excellent for most workloads. But when you have millions of concurrent users and need predictable latency, Rust's lack of GC becomes a structural advantage.
+        </div>
+      </div>
+    ` },
+  ],
+
 };
 
 // ── PROBLEM STATEMENTS ────────────────────────────────────

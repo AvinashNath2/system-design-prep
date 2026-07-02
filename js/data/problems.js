@@ -26,6 +26,7 @@ const systemProblems = {
   typeahead:     "How does Google show 5 completions before you've finished typing a single word?",
   segment:       'How does one analytics event from your app fan out to 100 different tools in real time?',
   k8s:           'How do you run 10,000 containers across 500 servers — with zero downtime, auto-healing, and one-command deploys?',
+  rust:          'How does Rust guarantee memory safety and fearless concurrency — without a garbage collector?',
 };
 
 // ── NAVIGATION ────────────────────────────────────────────

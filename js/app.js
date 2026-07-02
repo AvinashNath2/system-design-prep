@@ -5,12 +5,18 @@ let _activeSection = 'sysdesign';
 const _sectionLabels = {
   sysdesign: 'System Design',
   devops:    'DevOps & Cloud-Native',
+  languages: 'Languages',
 };
+
+const _sectionPageIds = ['home-page', 'devops-page', 'languages-page'];
 
 function showSection(section) {
   _activeSection = section;
-  document.getElementById('home-page').style.display   = section === 'sysdesign' ? 'block' : 'none';
-  document.getElementById('devops-page').style.display = section === 'devops'    ? 'block' : 'none';
+  const map = { sysdesign: 'home-page', devops: 'devops-page', languages: 'languages-page' };
+  _sectionPageIds.forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById(map[section]).style.display = 'block';
   document.getElementById('detail-page').style.display = 'none';
   document.querySelectorAll('.nav-link[data-section]').forEach(el => {
     el.classList.toggle('active', el.dataset.section === section);
@@ -27,8 +33,9 @@ function openSystem(id) {
 
   renderSidebar(0);
 
-  document.getElementById('home-page').style.display   = 'none';
-  document.getElementById('devops-page').style.display = 'none';
+  _sectionPageIds.forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
   document.getElementById('detail-page').style.display = 'block';
   window.scrollTo(0, 0);
 }

@@ -32,6 +32,14 @@
         </span>
         DevOps
       </a>
+      <a class="nav-link" data-section="languages" onclick="showSection('languages')">
+        <span class="nav-tab-icon">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3,4 1,7.5 3,11"/><polyline points="12,4 14,7.5 12,11"/><line x1="9" y1="2" x2="6" y2="13"/>
+          </svg>
+        </span>
+        Languages
+      </a>
       <a class="nav-link soon">
         <span class="nav-tab-icon">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -562,6 +570,47 @@
   </div>
 </div>
 
+<!-- ══════════════ LANGUAGES PAGE ══════════════ -->
+<div id="languages-page" style="display:none;">
+  <div class="hero" style="background:linear-gradient(135deg,#1c0a00 0%,#7c2d12 55%,#92400e 100%);">
+    <div class="hero-inner">
+      <div class="hero-eyebrow" style="color:#fde68a;letter-spacing:2px;">LANGUAGES · SYSTEMS PROGRAMMING</div>
+      <h1 class="hero-title" style="color:#fff7ed;">Write code that doesn't lie.<br>Learn the language that proves it.</h1>
+      <p class="hero-sub" style="color:#fdba74;">From ownership to async concurrency — master Rust from first principles, with real code at every step and cross-examination Q&amp;A built in.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="stat-num" style="color:#fde68a;">1</span><span class="stat-label" style="color:#fdba74;">Language</span></div>
+        <div class="hero-stat"><span class="stat-num" style="color:#fde68a;">12</span><span class="stat-label" style="color:#fdba74;">Core Steps</span></div>
+        <div class="hero-stat"><span class="stat-num" style="color:#fde68a;">+5</span><span class="stat-label" style="color:#fdba74;">Advanced</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="systems-container">
+    <div class="biz-group">
+      <div class="biz-label">Systems Programming</div>
+      <div class="systems-grid">
+        <div class="system-card done" onclick="openSystem('rust')">
+          <div class="card-media" style="background:#B7410E;">
+            <svg width="52" height="52" viewBox="0 0 106 106" xmlns="http://www.w3.org/2000/svg">
+              <path fill="white" d="M53 6.5C27.3 6.5 6.5 27.3 6.5 53S27.3 99.5 53 99.5 99.5 78.7 99.5 53 78.7 6.5 53 6.5zm21.3 62.8l-3.1 1.9c-.3.2-.7.3-1 .3h-5.5c-.5 0-.9-.2-1.3-.5l-4.5-4.5H42.1l-4.5 4.5c-.4.3-.8.5-1.3.5h-5.5c-.4 0-.7-.1-1-.3l-3.1-1.9c-.7-.5-.9-1.4-.5-2.1l2.3-4c.3-.5.8-.9 1.4-.9h2.8l3.5-18.5H34c-.6 0-1.2-.4-1.4-.9L30 38.8c-.2-.8.2-1.6 1-1.8l4.2-1.2c.2-.1.5-.1.7-.1h34.2c.2 0 .5 0 .7.1l4.2 1.2c.8.2 1.2 1 1 1.8l-2.6 5.1c-.2.5-.8.9-1.4.9h-2.7l3.5 18.5h2.8c.6 0 1.1.4 1.4.9l2.3 4c.4.7.2 1.6-.5 2.1z"/>
+              <circle fill="white" cx="40" cy="58" r="4"/>
+              <circle fill="white" cx="66" cy="58" r="4"/>
+            </svg>
+          </div>
+          <div class="card-body">
+            <div class="card-cat">Systems Programming</div>
+            <div class="card-row">
+              <div class="card-name">Rust</div>
+              <div class="card-sub">✓ Done</div>
+            </div>
+            <div class="card-problem">How does Rust guarantee memory safety and fearless concurrency — without a garbage collector?</div>
+            <div class="card-tags"><span class="card-tag">Ownership</span><span class="card-tag">Borrowing</span><span class="card-tag">Zero-cost</span><span class="card-tag">Lifetimes</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ DETAIL PAGE ══════════════ -->
 <div id="detail-page">
   <div class="detail-nav">
@@ -580,6 +629,7 @@
 
 
 <script src="js/data/systems.js"></script>
+<script src="js/data/languages.js"></script>
 <script src="js/data/extras.js"></script>
 <script src="js/data/problems.js"></script>
 <script src="js/app.js"></script>
