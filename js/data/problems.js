@@ -1,4 +1,4 @@
-const systemProblems = {
+export const systemProblems = {
   reddit:        'How do 430M users instantly read posts without the server rebuilding their feed each time?',
   twitter:       'How does a single tweet reach 100M followers within seconds of being posted?',
   bluesky:       'How do you build a social network where no single company controls your data?',

@@ -1,6 +1,6 @@
 // ── LANGUAGES ─────────────────────────────────────────────
 
-systems['rust'] = {
+const rust = {
   name: 'Rust',
   sub: 'Systems programming — safe, fast, concurrent',
   steps: [
@@ -1503,4 +1503,6 @@ match rx.try_recv() {
     ` },
 
   ] // end steps
-}; // end systems['rust']
+};
+
+export const languageSystems = { rust };

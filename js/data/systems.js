@@ -1,5 +1,5 @@
 // System Design + DevOps system data
-const systems = {
+export const systems = {
   reddit: {
     name: 'Reddit',
     sub: 'Social news aggregation & discussion',

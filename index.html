@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DevLearn — System Design</title>
+<meta name="description" content="Learn system design through 25 real-world systems, each broken down into 7 steps. Build mental models, not memorized answers.">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -15,7 +16,7 @@
       DevLearn
     </a>
     <div class="nav-links">
-      <a class="nav-link active" data-section="sysdesign" onclick="showSection('sysdesign')">
+      <a class="nav-link active" data-section="sysdesign">
         <span class="nav-tab-icon">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <rect x="1" y="1" width="5" height="5" rx="1"/><rect x="9" y="1" width="5" height="5" rx="1"/>
@@ -24,7 +25,7 @@
         </span>
         System Design
       </a>
-      <a class="nav-link" data-section="devops" onclick="showSection('devops')">
+      <a class="nav-link" data-section="devops">
         <span class="nav-tab-icon">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="7.5" cy="7.5" r="2"/><path d="M7.5 1.5v2M7.5 11.5v2M1.5 7.5h2M11.5 7.5h2M3.4 3.4l1.4 1.4M10.2 10.2l1.4 1.4M3.4 11.6l1.4-1.4M10.2 4.8l1.4-1.4"/>
@@ -32,7 +33,7 @@
         </span>
         DevOps
       </a>
-      <a class="nav-link" data-section="languages" onclick="showSection('languages')">
+      <a class="nav-link" data-section="languages">
         <span class="nav-tab-icon">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3,4 1,7.5 3,11"/><polyline points="12,4 14,7.5 12,11"/><line x1="9" y1="2" x2="6" y2="13"/>
@@ -97,7 +98,7 @@
       <div class="biz-label">Social &amp; Content</div>
       <div class="systems-grid">
 
-        <div class="system-card done" onclick="openSystem('reddit')">
+        <button class="system-card done" data-system-id="reddit" type="button">
           <div class="card-media" style="background:#FF4500;">
             <img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=64" alt="Reddit">
           </div>
@@ -107,12 +108,12 @@
               <div class="card-name">Reddit</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do 430M users instantly read posts without the server rebuilding their feed each time?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Fan-out on Write</span><span class="card-tag">Vote Counting</span><span class="card-tag">Feed Ranking</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('twitter')">
+        <button class="system-card done" data-system-id="twitter" type="button">
           <div class="card-media" style="background:#111111;">
             <img src="https://www.google.com/s2/favicons?domain=x.com&sz=64" alt="Twitter">
           </div>
@@ -122,12 +123,12 @@
               <div class="card-name">Twitter Timeline</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does a single tweet reach 100M followers within seconds of being posted?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Fan-out on Read</span><span class="card-tag">Feed Ranking</span><span class="card-tag">Celebrity Problem</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('bluesky')">
+        <button class="system-card done" data-system-id="bluesky" type="button">
           <div class="card-media" style="background:#0085FF;">
             <img src="https://www.google.com/s2/favicons?domain=bsky.app&sz=64" alt="Bluesky">
           </div>
@@ -137,12 +138,12 @@
               <div class="card-name">Bluesky</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you build a social network where no single company controls your data?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Decentralized</span><span class="card-tag">AT Protocol</span><span class="card-tag">Federation</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('youtube')">
+        <button class="system-card done" data-system-id="youtube" type="button">
           <div class="card-media" style="background:#FF0000;">
             <img src="https://www.google.com/s2/favicons?domain=youtube.com&sz=64" alt="YouTube">
           </div>
@@ -152,12 +153,12 @@
               <div class="card-name">YouTube</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does YouTube transcode an uploaded video into 20 formats and stream it to 2B users?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Video Transcoding</span><span class="card-tag">CDN</span><span class="card-tag">ABR Streaming</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('spotify')">
+        <button class="system-card done" data-system-id="spotify" type="button">
           <div class="card-media" style="background:#1DB954;">
             <img src="https://www.google.com/s2/favicons?domain=spotify.com&sz=64" alt="Spotify">
           </div>
@@ -167,12 +168,12 @@
               <div class="card-name">Spotify</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does Spotify stream 100M songs to 600M users with near-zero buffering?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Audio Streaming</span><span class="card-tag">CDN</span><span class="card-tag">Offline Cache</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('netflix')">
+        <button class="system-card done" data-system-id="netflix" type="button">
           <div class="card-media" style="background:#E50914;">
             <img src="https://www.google.com/s2/favicons?domain=netflix.com&sz=64" alt="Netflix">
           </div>
@@ -182,12 +183,12 @@
               <div class="card-name">Netflix</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does Netflix know what show you'll want to watch before you even search for it?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Two-Tower ML</span><span class="card-tag">Offline Training</span><span class="card-tag">ANN Search</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('twitch')">
+        <button class="system-card done" data-system-id="twitch" type="button">
           <div class="card-media" style="background:#9146FF;">
             <img src="https://www.google.com/s2/favicons?domain=twitch.tv&sz=64" alt="Twitch">
           </div>
@@ -197,10 +198,10 @@
               <div class="card-name">Twitch</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you live-stream video with under 1s delay to 2.5M concurrent viewers?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">RTMP Ingest</span><span class="card-tag">HLS Transcode</span><span class="card-tag">WebSocket Chat</span></div>
           </div>
-        </div>
+        </button>
 
       </div>
     </div>
@@ -210,7 +211,7 @@
       <div class="biz-label">Messaging &amp; Collaboration</div>
       <div class="systems-grid">
 
-        <div class="system-card done" onclick="openSystem('slack')">
+        <button class="system-card done" data-system-id="slack" type="button">
           <div class="card-media" style="background:#4A154B;">
             <img src="https://www.google.com/s2/favicons?domain=slack.com&sz=64" alt="Slack">
           </div>
@@ -220,12 +221,12 @@
               <div class="card-name">Slack</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does a message you type reach 10,000 teammates across the world in real time?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">WebSocket</span><span class="card-tag">Pub/Sub</span><span class="card-tag">Message Ordering</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('whatsapp')">
+        <button class="system-card done" data-system-id="whatsapp" type="button">
           <div class="card-media" style="background:#25D366;">
             <img src="https://www.google.com/s2/favicons?domain=whatsapp.com&sz=64" alt="WhatsApp">
           </div>
@@ -235,12 +236,12 @@
               <div class="card-name">WhatsApp</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does WhatsApp deliver 100B messages per day, even to phones that are offline?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">E2E Encryption</span><span class="card-tag">Offline Delivery</span><span class="card-tag">Signal Protocol</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('googledocs')">
+        <button class="system-card done" data-system-id="googledocs" type="button">
           <div class="card-media" style="background:#1A73E8;">
             <img src="https://www.google.com/s2/favicons?domain=docs.google.com&sz=64" alt="Google Docs">
           </div>
@@ -250,10 +251,10 @@
               <div class="card-name">Google Docs</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How can 50 people edit the same document simultaneously without overwriting each other?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">OT / CRDT</span><span class="card-tag">Conflict Resolution</span><span class="card-tag">Real-time Sync</span></div>
           </div>
-        </div>
+        </button>
 
       </div>
     </div>
@@ -263,7 +264,7 @@
       <div class="biz-label">Marketplace &amp; Fintech</div>
       <div class="systems-grid">
 
-        <div class="system-card done" onclick="openSystem('airbnb')">
+        <button class="system-card done" data-system-id="airbnb" type="button">
           <div class="card-media" style="background:#FF5A5F;">
             <img src="https://www.google.com/s2/favicons?domain=airbnb.com&sz=64" alt="Airbnb">
           </div>
@@ -273,12 +274,12 @@
               <div class="card-name">Airbnb</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you show real-time availability across 7M listings and prevent any double-booking?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Geo Search</span><span class="card-tag">Availability Calendar</span><span class="card-tag">Double Booking</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('tinder')">
+        <button class="system-card done" data-system-id="tinder" type="button">
           <div class="card-media" style="background:#FE3C72;">
             <img src="https://www.google.com/s2/favicons?domain=tinder.com&sz=64" alt="Tinder">
           </div>
@@ -288,12 +289,12 @@
               <div class="card-name">Tinder</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does Tinder pick which 500 profiles to show you today from 75M users nearby?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Geo Matching</span><span class="card-tag">Swipe Queue</span><span class="card-tag">Quadtree Index</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('payment')">
+        <button class="system-card done" data-system-id="payment" type="button">
           <div class="card-media" style="background:#635BFF;">
             <img src="https://www.google.com/s2/favicons?domain=stripe.com&sz=64" alt="Stripe">
           </div>
@@ -303,12 +304,12 @@
               <div class="card-name">Payment System</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does a payment reach the merchant in under 2 seconds with zero risk of charging twice?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Idempotency</span><span class="card-tag">ACID Transactions</span><span class="card-tag">Saga Pattern</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('stockexchange')">
+        <button class="system-card done" data-system-id="stockexchange" type="button">
           <div class="card-media" style="background:#1C2951;">
             <img src="https://www.google.com/s2/favicons?domain=nyse.com&sz=64" alt="Stock Exchange">
           </div>
@@ -318,12 +319,12 @@
               <div class="card-name">Stock Exchange</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does an exchange match millions of buy/sell orders with microsecond-level precision?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Order Matching</span><span class="card-tag">Low Latency</span><span class="card-tag">Price-Time Priority</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('bookmyshow')">
+        <button class="system-card done" data-system-id="bookmyshow" type="button">
           <div class="card-media" style="background:#E31837;">
             <img src="https://www.google.com/s2/favicons?domain=bookmyshow.com&sz=64" alt="BookMyShow">
           </div>
@@ -333,10 +334,10 @@
               <div class="card-name">BookMyShow</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you sell 50,000 concert tickets in 30 seconds with zero seats double-booked?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Pessimistic Lock</span><span class="card-tag">Redis SET NX</span><span class="card-tag">Waiting Room</span></div>
           </div>
-        </div>
+        </button>
 
       </div>
     </div>
@@ -346,7 +347,7 @@
       <div class="biz-label">Infrastructure &amp; Storage</div>
       <div class="systems-grid">
 
-        <div class="system-card done" onclick="openSystem('s3')">
+        <button class="system-card done" data-system-id="s3" type="button">
           <div class="card-media" style="background:#FF9900;">
             <img src="https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=64" alt="AWS S3">
           </div>
@@ -356,12 +357,12 @@
               <div class="card-name">AWS S3</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does S3 store 100 trillion objects and retrieve any one of them in under 100ms?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Object Storage</span><span class="card-tag">Sharding</span><span class="card-tag">Multipart Upload</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('lambda')">
+        <button class="system-card done" data-system-id="lambda" type="button">
           <div class="card-media" style="background:#232F3E;">
             <img src="https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=64" alt="AWS Lambda">
           </div>
@@ -371,12 +372,12 @@
               <div class="card-name">Amazon Lambda</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does AWS run your code in milliseconds without you managing a single server?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Serverless</span><span class="card-tag">Cold Start</span><span class="card-tag">Event-driven</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('kafka')">
+        <button class="system-card done" data-system-id="kafka" type="button">
           <div class="card-media" style="background:#F5A623;">
             <img src="https://www.google.com/s2/favicons?domain=confluent.io&sz=64" alt="Kafka">
           </div>
@@ -386,12 +387,12 @@
               <div class="card-name">Apache Kafka</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does one system reliably process 1 million events per second from 100 producers?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Event Streaming</span><span class="card-tag">Log Compaction</span><span class="card-tag">Consumer Groups</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('urlshortener')">
+        <button class="system-card done" data-system-id="urlshortener" type="button">
           <div class="card-media" style="background:#EB4A1E;">
             <img src="https://www.google.com/s2/favicons?domain=bitly.com&sz=64" alt="Bitly">
           </div>
@@ -401,12 +402,12 @@
               <div class="card-name">URL Shortener</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you redirect 10 billion clicks per day in under 10ms using a 7-character code?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Hashing</span><span class="card-tag">Redirect Cache</span><span class="card-tag">301 vs 302</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('ratelimiter')">
+        <button class="system-card done" data-system-id="ratelimiter" type="button">
           <div class="card-media" style="background:#0F172A;">
             <img src="https://www.google.com/s2/favicons?domain=nginx.com&sz=64" alt="Rate Limiter">
           </div>
@@ -416,12 +417,12 @@
               <div class="card-name">Rate Limiter</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you stop one bad actor from bringing your entire API down for every user?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Token Bucket</span><span class="card-tag">Sliding Window</span><span class="card-tag">Redis Atomic</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('notifications')">
+        <button class="system-card done" data-system-id="notifications" type="button">
           <div class="card-media" style="background:#FBBC04;">
             <img src="https://www.google.com/s2/favicons?domain=firebase.google.com&sz=64" alt="Firebase">
           </div>
@@ -431,10 +432,10 @@
               <div class="card-name">Push Notifications</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does one event trigger the right notification on the right device in milliseconds?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Fan-out Delivery</span><span class="card-tag">Token Registry</span><span class="card-tag">Priority Queue</span></div>
           </div>
-        </div>
+        </button>
 
       </div>
     </div>
@@ -444,7 +445,7 @@
       <div class="biz-label">AI &amp; Location</div>
       <div class="systems-grid">
 
-        <div class="system-card done" onclick="openSystem('chatgpt')">
+        <button class="system-card done" data-system-id="chatgpt" type="button">
           <div class="card-media" style="background:#10A37F;">
             <img src="https://www.google.com/s2/favicons?domain=openai.com&sz=64" alt="OpenAI">
           </div>
@@ -454,12 +455,12 @@
               <div class="card-name">LLMs / ChatGPT</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you stream AI responses to millions of users without the servers collapsing?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Token Streaming</span><span class="card-tag">KV Cache</span><span class="card-tag">Inference at Scale</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('uber')">
+        <button class="system-card done" data-system-id="uber" type="button">
           <div class="card-media" style="background:#09091A;">
             <img src="https://www.google.com/s2/favicons?domain=uber.com&sz=64" alt="Uber">
           </div>
@@ -469,12 +470,12 @@
               <div class="card-name">Uber</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does Uber match you with the nearest driver in under 3 seconds, anywhere in the world?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Geo Index</span><span class="card-tag">Driver Matching</span><span class="card-tag">Surge Pricing</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('airtag')">
+        <button class="system-card done" data-system-id="airtag" type="button">
           <div class="card-media" style="background:#0071E3;">
             <img src="https://www.google.com/s2/favicons?domain=apple.com&sz=64" alt="Apple">
           </div>
@@ -484,12 +485,12 @@
               <div class="card-name">Apple AirTag</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does an AirTag locate itself using strangers' iPhones while preserving everyone's privacy?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">BLE Crowd-source</span><span class="card-tag">Privacy by Design</span><span class="card-tag">Rotating Keys</span></div>
           </div>
-        </div>
+        </button>
 
-        <div class="system-card done" onclick="openSystem('typeahead')">
+        <button class="system-card done" data-system-id="typeahead" type="button">
           <div class="card-media" style="background:#4285F4;">
             <img src="https://www.google.com/s2/favicons?domain=google.com&sz=64" alt="Google">
           </div>
@@ -499,10 +500,10 @@
               <div class="card-name">Google Typeahead</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does Google show 5 completions before you've finished typing a single word?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Trie</span><span class="card-tag">Prefix Index</span><span class="card-tag">Consistent Hash</span></div>
           </div>
-        </div>
+        </button>
 
       </div>
     </div>
@@ -512,7 +513,7 @@
       <div class="biz-label">Analytics &amp; Platform</div>
       <div class="systems-grid">
 
-        <div class="system-card done" onclick="openSystem('segment')">
+        <button class="system-card done" data-system-id="segment" type="button">
           <div class="card-media" style="background:#52BD95;">
             <img src="https://www.google.com/s2/favicons?domain=segment.com&sz=64" alt="Segment">
           </div>
@@ -522,10 +523,10 @@
               <div class="card-name">Segment</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does one analytics event from your app fan out to 100 different tools in real time?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Event Pipeline</span><span class="card-tag">Fan-out</span><span class="card-tag">Dead Letter Queue</span></div>
           </div>
-        </div>
+        </button>
 
       </div>
     </div>
@@ -551,7 +552,7 @@
     <div class="biz-group">
       <div class="biz-label">Container Orchestration</div>
       <div class="systems-grid">
-        <div class="system-card done" onclick="openSystem('k8s')">
+        <button class="system-card done" data-system-id="k8s" type="button">
           <div class="card-media" style="background:#326CE5;">
             <img src="https://www.google.com/s2/favicons?domain=kubernetes.io&sz=64" alt="Kubernetes">
           </div>
@@ -561,10 +562,10 @@
               <div class="card-name">Kubernetes</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How do you run 10,000 containers across 500 servers — with zero downtime, auto-healing, and one-command deploys?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Orchestration</span><span class="card-tag">Pods</span><span class="card-tag">Auto-scaling</span><span class="card-tag">Self-healing</span></div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   </div>
@@ -588,7 +589,7 @@
     <div class="biz-group">
       <div class="biz-label">Systems Programming</div>
       <div class="systems-grid">
-        <div class="system-card done" onclick="openSystem('rust')">
+        <button class="system-card done" data-system-id="rust" type="button">
           <div class="card-media" style="background:#B7410E;">
             <svg width="52" height="52" viewBox="0 0 106 106" xmlns="http://www.w3.org/2000/svg">
               <path fill="white" d="M53 6.5C27.3 6.5 6.5 27.3 6.5 53S27.3 99.5 53 99.5 99.5 78.7 99.5 53 78.7 6.5 53 6.5zm21.3 62.8l-3.1 1.9c-.3.2-.7.3-1 .3h-5.5c-.5 0-.9-.2-1.3-.5l-4.5-4.5H42.1l-4.5 4.5c-.4.3-.8.5-1.3.5h-5.5c-.4 0-.7-.1-1-.3l-3.1-1.9c-.7-.5-.9-1.4-.5-2.1l2.3-4c.3-.5.8-.9 1.4-.9h2.8l3.5-18.5H34c-.6 0-1.2-.4-1.4-.9L30 38.8c-.2-.8.2-1.6 1-1.8l4.2-1.2c.2-.1.5-.1.7-.1h34.2c.2 0 .5 0 .7.1l4.2 1.2c.8.2 1.2 1 1 1.8l-2.6 5.1c-.2.5-.8.9-1.4.9h-2.7l3.5 18.5h2.8c.6 0 1.1.4 1.4.9l2.3 4c.4.7.2 1.6-.5 2.1z"/>
@@ -602,19 +603,19 @@
               <div class="card-name">Rust</div>
               <div class="card-sub">✓ Done</div>
             </div>
-            <div class="card-problem">How does Rust guarantee memory safety and fearless concurrency — without a garbage collector?</div>
+            <div class="card-problem"></div>
             <div class="card-tags"><span class="card-tag">Ownership</span><span class="card-tag">Borrowing</span><span class="card-tag">Zero-cost</span><span class="card-tag">Lifetimes</span></div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- ══════════════ DETAIL PAGE ══════════════ -->
-<div id="detail-page">
+<div id="detail-page" style="display:none;">
   <div class="detail-nav">
-    <button class="back-btn" onclick="goHome()">← Back</button>
+    <button class="back-btn" id="back-btn" type="button">← Back</button>
     <div class="detail-breadcrumb">
       CS <span class="bc-sep">›</span>
       <span id="detail-section-label">System Design</span> <span class="bc-sep">›</span>
@@ -627,11 +628,6 @@
   </div>
 </div>
 
-
-<script src="js/data/systems.js"></script>
-<script src="js/data/languages.js"></script>
-<script src="js/data/extras.js"></script>
-<script src="js/data/problems.js"></script>
-<script src="js/app.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
