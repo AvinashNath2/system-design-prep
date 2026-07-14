@@ -2467,133 +2467,345 @@ systems['stockexchange'] = {
   name: 'Stock Exchange', sub: 'Order matching engine',
   steps: [
     { name: 'Functional Requirements', content: `
-      <div class="content-label">What the system must do</div>
-      <ul class="req-list">
-        <li><strong>Place orders</strong> — market orders (execute now at best price) and limit orders (execute at specific price)</li>
-        <li><strong>Order book</strong> — maintain sorted list of all bids (buy) and asks (sell) per instrument</li>
-        <li><strong>Matching engine</strong> — match buy and sell orders by price-time priority</li>
-        <li><strong>Cancel / Modify orders</strong> — users can cancel or change open orders</li>
-        <li><strong>Market data feed</strong> — publish real-time price, volume, order book depth to subscribers</li>
-        <li><strong>Trade history</strong> — record all executed trades with timestamp, price, quantity</li>
-        <li><strong>Account management</strong> — balances, positions, margin</li>
-        <li><strong>Circuit breakers</strong> — halt trading if price moves too fast</li>
-      </ul>` },
+
+      <div class="content-section">
+        <div class="content-label">First — what actually is a stock exchange?</div>
+        <div class="insight-box">
+          Think of it like OLX or eBay — but for company shares, running at insane speed.<br><br>
+          You want to <strong>buy</strong> 10 shares of Apple. Someone else wants to <strong>sell</strong> 10 shares of Apple.
+          The stock exchange is the platform that finds you both, agrees on a price, and completes the deal — automatically,
+          in under a millisecond, for millions of people at the same time.
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">What users can do</div>
+        <ul class="req-list">
+          <li><strong>Place a Buy order</strong> — "I want to buy 100 Apple shares." You can say "at any price right now" (market order) or "only if the price is below $150" (limit order).</li>
+          <li><strong>Place a Sell order</strong> — "I want to sell my 100 Apple shares." Same options — sell now at market price, or only at your target price.</li>
+          <li><strong>Cancel an order</strong> — Changed your mind before it executed? You can cancel it as long as nobody has matched it yet.</li>
+          <li><strong>See live prices</strong> — The price ticker you see on Zerodha, Groww, or Robinhood — that's the exchange broadcasting every trade that just happened.</li>
+          <li><strong>See trade history</strong> — Every completed buy/sell is permanently recorded — price, quantity, timestamp. Both buyer and seller get a receipt.</li>
+          <li><strong>Account balance &amp; portfolio</strong> — How much cash do you have? How many shares do you hold? This is tracked in real time.</li>
+          <li><strong>Circuit breaker</strong> — If prices crash too fast (panic selling), trading automatically pauses for a few minutes to let people calm down.</li>
+        </ul>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: Why can't buyers and sellers just find each other directly, like WhatsApp?</strong></td><td>Because at 9:30 AM market open, a million people are all trying to buy and sell simultaneously. There is no "finding each other" — you need a central system that holds all outstanding offers and automatically pairs them in microseconds. Direct peer-to-peer is just too slow and too chaotic.</td></tr>
+          <tr><td><strong>Q: What's the difference between NSE, BSE, and a broker like Zerodha?</strong></td><td>NSE and BSE are the exchanges — they run the matching engine. Zerodha is a broker — it's just the app you use to send your orders to the exchange. Think of NSE as the stock exchange building and Zerodha as your agent who walks your order inside.</td></tr>
+          <tr><td><strong>Q: What does "instrument" mean in trading systems?</strong></td><td>Just a fancy word for "anything you can trade." AAPL stock is an instrument. USD/INR currency pair is an instrument. Gold futures is an instrument. Each one has its own separate order book.</td></tr>
+        </table>
+      </div>
+    ` },
     { name: 'Non-Functional Requirements', content: `
-      <div class="content-label">How well it must perform</div>
-      <table class="nfr-table">
-        <tr><td>Ultra-Low Latency</td><td>&lt;1ms order processing — microseconds at HFT exchanges</td></tr>
-        <tr><td>Strong Consistency</td><td>No duplicate trades, no missed orders — money is on the line</td></tr>
-        <tr><td>High Throughput</td><td>Millions of orders/sec during market open</td></tr>
-        <tr><td>Durability</td><td>Every order and trade must survive a crash — no data loss</td></tr>
-        <tr><td>Fairness</td><td>Price-time priority — first order at a price must match first</td></tr>
-        <tr><td>Auditability</td><td>Full audit trail of every order state change for regulators</td></tr>
-      </table>
-      <div class="content-label" style="margin-top:20px;">Database Choice — CAP Theorem</div>
-      <div class="insight-box" style="margin-bottom:10px;">Stock exchange is <strong>pure CP</strong>. Availability can be sacrificed (trading halted) before consistency is compromised. A missed trade or duplicate fill is unacceptable.</div>
-      <table class="nfr-table">
-        <tr><td><strong>Order book (live)</strong><br><span style="color:#888;font-size:11px;">In-memory (CP, single node)</span></td><td>The matching engine keeps the entire order book in memory for microsecond access. A Redis-like structure or custom B-tree. Single-threaded to avoid race conditions — CP by design.</td></tr>
-        <tr><td><strong>Orders / Trades persistence</strong><br><span style="color:#888;font-size:11px;">PostgreSQL + Kafka WAL (CP)</span></td><td>Every order event is appended to Kafka (write-ahead log). PostgreSQL stores the confirmed trade records. Strong consistency, ACID. Kafka acts as the durable event log.</td></tr>
-        <tr><td><strong>Market data feed</strong><br><span style="color:#888;font-size:11px;">Redis / in-memory broadcast (AP)</span></td><td>Price tickers and order book depth published to subscribers. AP — a subscriber seeing a price 10ms late is fine. Never sacrifice matching engine speed for market data delivery.</td></tr>
-        <tr><td><strong>User accounts / Balances</strong><br><span style="color:#888;font-size:11px;">PostgreSQL (CP)</span></td><td>Account balances must be strongly consistent — can't sell stock you don't own. CP with row-level locking for balance updates.</td></tr>
-      </table>
-      <div class="content-label" style="margin-top:20px;">Design Patterns</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-        <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px;"><div style="font-size:12px;font-weight:700;color:#dc2626;">LMAX Disruptor Pattern</div><div style="font-size:12px;color:#555;margin-top:4px;">Single-threaded matching engine on a dedicated CPU core — no context switching, no locks. Orders arrive via a ring buffer (Disruptor). Engine processes orders one at a time in sequence. This achieves millions of ops/sec with &lt;1ms latency.</div></div>
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;"><div style="font-size:12px;font-weight:700;color:#1d4ed8;">Event Sourcing (Full Audit Trail)</div><div style="font-size:12px;color:#555;margin-top:4px;">Every state change (order placed, modified, cancelled, matched) is an immutable event. The order book state is derived by replaying events from the beginning. Required for regulatory compliance and crash recovery.</div></div>
-        <div style="background:#fefce8;border:1px solid #fef08a;border-radius:8px;padding:12px;"><div style="font-size:12px;font-weight:700;color:#a16207;">Price-Time Priority (FIFO Matching)</div><div style="font-size:12px;color:#555;margin-top:4px;">Best bid (highest price) matches best ask (lowest price). Among orders at the same price, earliest order matches first (time priority). Order book kept as a sorted map: price → queue of orders by time.</div></div>
-      </div>` },
+
+      <div class="content-section">
+        <div class="content-label">The scary one — why milliseconds matter here but not on Instagram</div>
+        <div class="insight-box">
+          When Instagram takes 200ms to load your feed — you don't care. You scroll on.<br><br>
+          When a stock exchange takes 200ms to process your order — you lose money. In 200ms, a high-frequency trading algorithm has already bought and re-sold the shares you were trying to buy, at a better price. Your order lands late and fills at a worse price.<br><br>
+          This is why the exchange obsesses over microseconds. <strong>Latency = money lost.</strong>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">The requirements, explained simply</div>
+        <table class="nfr-table">
+          <tr>
+            <td><strong>Ultra-Low Latency</strong><br><span style="color:#6366f1;font-size:11px;">&lt; 1 millisecond</span></td>
+            <td>From the moment your "buy" order arrives at the exchange to the moment it's matched — under 1ms. Top HFT exchanges (NYSE, NASDAQ) do it in microseconds. This is not a nice-to-have. It's the whole product.</td>
+          </tr>
+          <tr>
+            <td><strong>No Duplicate Trades</strong><br><span style="color:#6366f1;font-size:11px;">Exactly-once guarantee</span></td>
+            <td>The single scariest bug in exchange software: one order matches twice. You sold 100 shares but the exchange recorded 200 shares sold. Your money is gone. No bug in any other system — not Twitter, not Netflix — causes this kind of direct financial harm. Duplicates are existential.</td>
+          </tr>
+          <tr>
+            <td><strong>High Throughput</strong><br><span style="color:#6366f1;font-size:11px;">Millions of orders/sec</span></td>
+            <td>At 9:30 AM on a volatile day, every trader's algorithm fires simultaneously. The exchange must swallow 1M+ orders per second without slowing down. Not because it's cool — because if it slows down, prices get stale and the whole market breaks.</td>
+          </tr>
+          <tr>
+            <td><strong>Fairness</strong><br><span style="color:#6366f1;font-size:11px;">Price-time priority</span></td>
+            <td>Rule: best price gets priority. If two people offer the same price, whoever arrived first gets priority. This is not just good design — it's a legal requirement. Exchanges are regulated. Unfair matching = criminal charges.</td>
+          </tr>
+          <tr>
+            <td><strong>Durability</strong><br><span style="color:#6366f1;font-size:11px;">No order lost on crash</span></td>
+            <td>The matching engine lives in memory (fast). But memory disappears on a crash. Every single order must also be written to a durable log before processing. If the server crashes and restarts, it replays the log and recovers every order — zero loss.</td>
+          </tr>
+          <tr>
+            <td><strong>Auditability</strong><br><span style="color:#6366f1;font-size:11px;">Full trail for regulators</span></td>
+            <td>SEBI, SEC, and every regulator in the world can subpoena your exchange's logs. Every order, every match, every cancellation — timestamped to the nanosecond — must be stored for years. This is not optional.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Where do you use which database — and why</div>
+        <div class="insight-box" style="margin-bottom:12px;">
+          Stock exchange is <strong>always CP, never AP</strong>. You can halt trading (sacrifice availability) but you cannot show the wrong balance or create a duplicate trade (sacrifice consistency). Money is involved — correctness beats uptime.
+        </div>
+        <table class="nfr-table">
+          <tr>
+            <td><strong>Order book (live, in-flight orders)</strong></td>
+            <td><strong>Pure in-memory — no database at all.</strong> The matching engine holds the entire order book in RAM. Why? Because any disk read would cost ~1ms, and the engine needs to complete matching in under 1ms total. RAM access is ~100 nanoseconds. Disk is 10,000× slower.</td>
+          </tr>
+          <tr>
+            <td><strong>Orders &amp; completed trades</strong></td>
+            <td><strong>PostgreSQL (CP) + Kafka as a write-ahead log.</strong> Every order is appended to Kafka first (durable event log). After matching, the trade record is written to PostgreSQL. ACID guaranteed — no partial writes.</td>
+          </tr>
+          <tr>
+            <td><strong>Live price ticker</strong></td>
+            <td><strong>Redis broadcast (AP is fine here).</strong> The price you see on your trading app can be 10ms stale — that's acceptable. Redis pub/sub broadcasts each trade to all subscribers. The matching engine never waits for this — it fires and forgets.</td>
+          </tr>
+          <tr>
+            <td><strong>Account balances</strong></td>
+            <td><strong>PostgreSQL (CP) — row-level locks.</strong> You cannot sell shares you don't own. Balance must be strongly consistent. Two people cannot sell the same share simultaneously. Row-level locking in Postgres prevents this.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: If the order book is only in memory, what happens when the server crashes?</strong></td><td>Every order is written to Kafka (a durable event log on disk) BEFORE the matching engine processes it. On restart, the engine replays all events from Kafka in order and rebuilds the exact same order book state. It's like Git — you can always reconstruct the current state by replaying history.</td></tr>
+          <tr><td><strong>Q: Why not use a fast database like Redis for the order book instead of raw memory?</strong></td><td>Even Redis has network overhead — a Redis call takes ~0.5ms over localhost. The matching engine is on the same machine as the order book — it reads directly from a memory address. No network, no serialization, no overhead. ~10 nanoseconds vs ~500,000 nanoseconds. That's a 50,000× difference.</td></tr>
+          <tr><td><strong>Q: What's a "write-ahead log" and why use Kafka for it?</strong></td><td>A write-ahead log (WAL) means: before you do anything, write what you're about to do to a log. If you crash mid-operation, replay the log on restart and finish the work. Kafka is perfect for this because it's append-only, fast, and replayed in exact order. PostgreSQL itself uses a WAL internally — Kafka is just doing the same thing at the distributed system level.</td></tr>
+        </table>
+      </div>
+    ` },
     { name: 'Capacity Estimation', content: `
-      <div class="content-label">Assumed: 100K DAU (traders)</div>
-      <div class="cap-calc">
-        <div class="cap-calc-row">
-          <div class="cap-calc-label">Orders at peak</div>
-          <div class="cap-calc-math">100K traders × 10 orders each at market open<br>All hitting at 9:30 AM simultaneously = spike</div>
-          <div class="cap-calc-result">~1M / sec (burst)</div>
-        </div>
-        <div class="cap-calc-row">
-          <div class="cap-calc-label">Processing latency</div>
-          <div class="cap-calc-math">Order arrives → matching engine checks buy/sell book → match or queue<br>No disk I/O in the critical path — purely in-memory operations</div>
-          <div class="cap-calc-result">&lt; 1ms</div>
-        </div>
-        <div class="cap-calc-row">
-          <div class="cap-calc-label">Order message size</div>
-          <div class="cap-calc-math">symbol (8B) + price (8B) + qty (4B) + side (1B) + ts (8B) + id (16B)<br>+ metadata padding ≈ 200 bytes per FIX message</div>
-          <div class="cap-calc-result">~200 bytes</div>
-        </div>
-        <div class="cap-calc-row">
-          <div class="cap-calc-label">Order book memory</div>
-          <div class="cap-calc-math">500K open orders × 200 bytes = 100 MB for one stock's book<br>Fits comfortably in RAM — no DB reads needed during matching</div>
-          <div class="cap-calc-result">~100 MB RAM</div>
+
+      <div class="content-section">
+        <div class="content-label">Let's think about the 9:30 AM problem first</div>
+        <div class="insight-box">
+          Imagine it's Tuesday morning. Market opens at 9:30 AM. Every algorithm trader, every retail investor, every institutional fund — they've all been preparing orders overnight. At exactly 9:30:00.000, they all hit "submit" simultaneously. This is the hardest moment for any exchange to handle — a massive burst of traffic compressed into one second.
         </div>
       </div>
-      <div class="insight-box">
-        The matching engine is <strong>CPU-bound, not I/O-bound</strong>. All DB writes (trade confirmations, audit logs) happen asynchronously via Kafka after the match — the critical path never touches a disk. This is how sub-millisecond latency is achieved.
-      </div>` },
+
+      <div class="content-section">
+        <div class="content-label">The numbers</div>
+        <div class="cap-calc">
+          <div class="cap-calc-row">
+            <div class="cap-calc-label">Active traders</div>
+            <div class="cap-calc-math">Assume 100,000 active traders on a mid-size exchange<br>(NSE has ~50M registered, ~3M active on a typical day)</div>
+            <div class="cap-calc-result">100K traders</div>
+          </div>
+          <div class="cap-calc-row">
+            <div class="cap-calc-label">Peak burst at open</div>
+            <div class="cap-calc-math">100K traders × 10 orders each, all hitting at 9:30 AM<br>All orders arrive in the same 1-second window</div>
+            <div class="cap-calc-result">~1M orders/sec</div>
+          </div>
+          <div class="cap-calc-row">
+            <div class="cap-calc-label">Target latency</div>
+            <div class="cap-calc-math">Order arrives → matching engine → trade confirmed<br>No disk read allowed in this path — must be pure memory</div>
+            <div class="cap-calc-result">&lt; 1ms end-to-end</div>
+          </div>
+          <div class="cap-calc-row">
+            <div class="cap-calc-label">Size of one order</div>
+            <div class="cap-calc-math">Stock symbol (8 bytes) + price (8B) + quantity (4B)<br>+ side buy/sell (1B) + timestamp (8B) + order ID (16B) + padding</div>
+            <div class="cap-calc-result">~200 bytes per order</div>
+          </div>
+          <div class="cap-calc-row">
+            <div class="cap-calc-label">Order book RAM needed</div>
+            <div class="cap-calc-math">500K open (unmatched) orders × 200 bytes each<br>= 100MB for one stock. 500 stocks = 50GB — fits in a server</div>
+            <div class="cap-calc-result">~50 GB RAM total</div>
+          </div>
+          <div class="cap-calc-row">
+            <div class="cap-calc-label">Kafka log growth</div>
+            <div class="cap-calc-math">1M orders/sec × 200 bytes = 200 MB/sec<br>= 12 GB/minute during peak. Retained for 7 days for replay.</div>
+            <div class="cap-calc-result">~84 TB/week</div>
+          </div>
+        </div>
+        <div class="insight-box" style="margin-top:4px;">
+          <strong>The key insight:</strong> The matching engine is <strong>CPU-bound, not storage-bound</strong>. The bottleneck is not "can we store enough orders" — RAM is cheap. The bottleneck is "can we process each order in under 1 microsecond." That's the engineering challenge everything else is designed around.
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: Why 200 bytes per order? That seems oddly small.</strong></td><td>Orders are designed to be tiny because they move at 1M/sec. A 200-byte order fits in a few CPU cache lines. The matching engine can load and compare an entire order without a single cache miss. If orders were 2KB, the cache pressure alone would add microseconds of latency per order.</td></tr>
+          <tr><td><strong>Q: 50GB of RAM just for the order book — is that realistic?</strong></td><td>Absolutely. A modern server has 256GB–1TB of RAM. The order book for all active stocks fits comfortably. Remember — not all 500 stocks have 500K open orders simultaneously. Popular stocks (AAPL, TSLA) have deep books; obscure ones have thin books. 50GB is a safe upper bound.</td></tr>
+          <tr><td><strong>Q: Why retain Kafka logs for 7 days?</strong></td><td>Two reasons. First, if the matching engine crashes, it replays Kafka to rebuild the order book — you need at least today's log. Second, regulators can ask "show me every order placed on Tuesday" — you need to have that data. 7 days is the typical retention window before logs are archived to cold storage.</td></tr>
+        </table>
+      </div>
+    ` },
     { name: 'High Level Design (HLD)', content: `
-      <div class="content-label">Architecture</div>
-      <div class="hld-graph">
-        <div class="layer-name">Clients</div>
-        <div class="hld-row"><div class="hld-multi">
-          <div class="hld-node c-blue">🏦 Broker API<div class="node-sub">FIX protocol</div></div>
-          <div class="hld-node c-blue">📱 Retail App<div class="node-sub">REST / WebSocket</div></div>
-        </div></div>
-        <div class="hld-arrow">↓</div>
-        <div class="hld-row"><div class="hld-node c-orange">🚪 Order Gateway<div class="node-sub">Auth · validation · rate limit</div></div></div>
-        <div class="hld-arrow">↓ ring buffer</div>
-        <div class="hld-row"><div class="hld-node c-red" style="border-color:#fca5a5;background:#fff1f2;">⚡ Matching Engine<div class="node-sub">Single-threaded · in-memory order book</div></div></div>
-        <div class="hld-arrow">↓</div>
-        <div class="hld-row"><div class="hld-multi">
-          <div class="hld-node c-yellow">📨 Kafka<div class="node-sub">Trade events (WAL)</div></div>
-          <div class="hld-node c-green">📊 Market Data Publisher<div class="node-sub">Prices · depth to subscribers</div></div>
-        </div></div>
-        <div class="hld-arrow">↓</div>
-        <div class="hld-row"><div class="hld-multi">
-          <div class="hld-node c-red">🗄️ PostgreSQL<div class="node-sub">Trades · orders · accounts</div></div>
-          <div class="hld-node c-red">🔒 Risk Engine<div class="node-sub">Pre-trade checks</div></div>
-          <div class="hld-node c-purple">⚡ Redis<div class="node-sub">Market data cache</div></div>
-        </div></div>
+
+      <div class="content-section">
+        <div class="content-label">Follow one order — from your phone to a completed trade</div>
+        <div class="insight-box">
+          The best way to understand the architecture is to trace a single "Buy 10 shares of AAPL" order from the moment you tap "Submit" to the moment the trade completes. Every component exists to serve this journey.
+        </div>
       </div>
-      <div class="insight-box" style="margin-top:12px;"><strong>Critical path is pure memory:</strong> Order Gateway → Matching Engine → trade result. DB writes happen async via Kafka after the trade. The user sees the fill in microseconds; the DB catches up in milliseconds.</div>
-      <div class="comm-block" style="margin-top:12px;">
-        <div class="comm-row"><span class="comm-pill sync-pill">SYNC</span> Order → Gateway → Matching Engine → fill result (microseconds)</div>
-        <div class="comm-row"><span class="comm-pill async-pill">ASYNC</span> Trade matched → Kafka → PostgreSQL (persistence) + Settlement Service</div>
-        <div class="comm-row"><span class="comm-pill async-pill">ASYNC</span> Trade matched → Market Data Publisher → WebSocket subscribers</div>
-      </div>` },
+
+      <div class="content-section">
+        <div class="content-label">The journey of one order</div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-radius:10px 10px 0 0;border-bottom:none;">
+            <div style="width:32px;height:32px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">1</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;">You tap "Buy" on Zerodha / Groww</div>
+              <div style="font-size:12px;color:#555;">Your broker app sends the order over the internet to the exchange's Order Gateway. Retail apps use REST. Professional trading firms use FIX protocol — a decades-old financial messaging standard designed for speed.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-left:1px solid #e0e7ff;border-right:1px solid #e0e7ff;">
+            <div style="width:32px;height:32px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">2</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;">Order Gateway checks: is this order even valid?</div>
+              <div style="font-size:12px;color:#555;">Three quick checks: Are you logged in? Do you have enough money in your account to buy? Is the price you specified in a valid format (stocks trade in specific price increments called "tick sizes")? If any check fails → rejected instantly. No wasted time sending bad orders to the matching engine.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#fff8f0;border:1px solid #fed7aa;border-left:1px solid #fed7aa;border-right:1px solid #fed7aa;">
+            <div style="width:32px;height:32px;background:#ea580c;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">3</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;">Written to Kafka — the "save point" before anything happens</div>
+              <div style="font-size:12px;color:#555;">Before touching the order book, the order is appended to a Kafka log on disk. This is the safety net. If the server crashes right now — after writing to Kafka but before matching — on restart the engine replays Kafka and processes this order as if nothing happened. <strong>No order is ever lost.</strong></div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#fff0f0;border:1px solid #fca5a5;border-left:1px solid #fca5a5;border-right:1px solid #fca5a5;">
+            <div style="width:32px;height:32px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">4</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;">⚡ Matching Engine — the heart of the exchange</div>
+              <div style="font-size:12px;color:#555;">The order enters a ring buffer (a fast in-memory queue). The matching engine picks it up and checks the order book: "Is there a seller willing to sell at or below the price this buyer wants?" If yes → trade. If no → the buy order sits in the book waiting. This happens in under 1 microsecond.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0 0 10px 10px;">
+            <div style="width:32px;height:32px;background:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;">5</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;">Trade confirmed — everything else happens in parallel, asynchronously</div>
+              <div style="font-size:12px;color:#555;">The match is done. Now three things happen simultaneously — but the matching engine doesn't wait for any of them: (a) trade record written to PostgreSQL for permanent storage, (b) buyer's and seller's account balances updated, (c) new price broadcasted to all trading apps via WebSocket. You see "Order Filled" on your screen within milliseconds.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">System diagram</div>
+        <div class="hld-graph">
+          <div class="layer-name">Your App (Zerodha / Bloomberg)</div>
+          <div class="hld-row"><div class="hld-multi">
+            <div class="hld-node c-blue">🏦 Broker API<div class="node-sub">FIX protocol (pro traders)</div></div>
+            <div class="hld-node c-blue">📱 Retail App<div class="node-sub">REST / WebSocket</div></div>
+          </div></div>
+          <div class="hld-arrow">↓ your order travels here</div>
+          <div class="hld-row"><div class="hld-node c-orange">🚪 Order Gateway<div class="node-sub">Auth · balance check · format validation</div></div></div>
+          <div class="hld-arrow">↓ saved to Kafka first (safety net)</div>
+          <div class="hld-row"><div class="hld-node c-yellow">📨 Kafka<div class="node-sub">Durable event log — survives crashes</div></div></div>
+          <div class="hld-arrow">↓ order enters ring buffer</div>
+          <div class="hld-row"><div class="hld-node c-red" style="border-color:#fca5a5;background:#fff1f2;">⚡ Matching Engine<div class="node-sub">Single thread · in-memory order book · &lt;1μs per order</div></div></div>
+          <div class="hld-arrow">↓ trade matched — now everything is async</div>
+          <div class="hld-row"><div class="hld-multi">
+            <div class="hld-node c-red">🗄️ PostgreSQL<div class="node-sub">Permanent trade records</div></div>
+            <div class="hld-node c-green">📊 Market Data<div class="node-sub">Price to all your apps</div></div>
+            <div class="hld-node c-purple">💰 Settlement<div class="node-sub">Update balances</div></div>
+          </div></div>
+        </div>
+        <div class="comm-block" style="margin-top:16px;">
+          <div class="comm-row"><span class="comm-pill sync-pill">SYNC</span> Your order → Gateway → Kafka → Matching Engine → trade result (under 1ms, you wait for this)</div>
+          <div class="comm-row"><span class="comm-pill async-pill">ASYNC</span> Trade done → PostgreSQL + Settlement + Market Data (happens in background, you don't wait)</div>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: Why write to Kafka BEFORE the matching engine processes the order? Isn't that slower?</strong></td><td>Yes, it adds a tiny amount of time (~50 microseconds for a Kafka append). But without it, if the matching engine crashes between receiving an order and processing it, that order simply disappears — no record it ever existed. The trader thinks their order is pending; the exchange has no memory of it. That's a disaster. The 50μs is worth it.</td></tr>
+          <tr><td><strong>Q: Why not just use a regular queue (like RabbitMQ) instead of a ring buffer?</strong></td><td>RabbitMQ and similar queues allocate memory for each message (malloc) and deallocate when consumed (free). At 1M orders/sec, malloc/free overhead alone adds milliseconds. The ring buffer is pre-allocated once at startup — it reuses the same fixed memory slots forever. No allocation, no deallocation, no garbage collector. 100× faster for this specific use case.</td></tr>
+          <tr><td><strong>Q: What is FIX protocol and why do professional traders use it instead of REST?</strong></td><td>FIX (Financial Information eXchange) is a 30-year-old text-based protocol specifically designed for trading. It's not faster than REST in raw speed — it's actually similar. The reason pros use it: it's the industry standard, every exchange supports it, and it carries rich trading-specific metadata (order type, routing instructions, execution conditions) that REST APIs don't natively support.</td></tr>
+        </table>
+      </div>
+    ` },
     { name: 'Data Modeling', content: `
-      <div class="content-label">Tables</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
-        <div class="db-node"><div class="db-node-header" style="background:#eff6ff;border-color:#bfdbfe;"><span class="db-node-icon">📊</span><span class="db-node-name">instruments</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>VARCHAR · PK (e.g. AAPL)</span></div><div class="db-row">name <span>VARCHAR</span></div><div class="db-row">lot_size <span>INT</span></div><div class="db-row">tick_size <span>DECIMAL</span></div></div></div>
-        <div class="db-node"><div class="db-node-header" style="background:#fefce8;border-color:#fef08a;"><span class="db-node-icon">📋</span><span class="db-node-name">orders</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>BIGINT · Snowflake PK</span></div><div class="db-row fk">🔗 account_id <span>FK → accounts</span></div><div class="db-row fk">🔗 instrument_id <span>FK → instruments</span></div><div class="db-row">side <span>ENUM (buy, sell)</span></div><div class="db-row">type <span>ENUM (market, limit)</span></div><div class="db-row">price <span>DECIMAL (nullable for market)</span></div><div class="db-row">qty <span>INT</span></div><div class="db-row">status <span>ENUM (open, filled, cancelled)</span></div></div></div>
-        <div class="db-node"><div class="db-node-header" style="background:#f0fdf4;border-color:#bbf7d0;"><span class="db-node-icon">🤝</span><span class="db-node-name">trades</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>BIGINT · PK</span></div><div class="db-row fk">🔗 buy_order_id <span>FK → orders</span></div><div class="db-row fk">🔗 sell_order_id <span>FK → orders</span></div><div class="db-row">price <span>DECIMAL</span></div><div class="db-row">qty <span>INT</span></div><div class="db-row">executed_at <span>TIMESTAMP (ns precision)</span></div></div></div>
-        <div class="db-node"><div class="db-node-header" style="background:#faf5ff;border-color:#e9d5ff;"><span class="db-node-icon">💰</span><span class="db-node-name">accounts</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>UUID · PK</span></div><div class="db-row">cash_balance <span>DECIMAL</span></div><div class="db-row">margin_available <span>DECIMAL</span></div></div></div>
+
+      <div class="content-section">
+        <div class="content-label">Think of the database as a court of record</div>
+        <div class="insight-box">
+          The order book (inside the matching engine) is in memory — blazing fast, but gone on crash. The database is the <strong>permanent legal record</strong>. Every order ever placed, every trade ever executed, every balance ever changed — it lives here, immutable, auditable forever.<br><br>
+          You only need four tables. But how they connect determines whether settlements work, whether a regulator can audit you, and whether the system recovers from a crash in 500ms or 3 hours.
+        </div>
       </div>
-      <div class="content-label">Relationship graph</div>
-      <div style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:10px;padding:20px;">
-        <svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:-apple-system,sans-serif;">
-          <defs><marker id="arrE" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#ccc"/></marker></defs>
-          <rect x="90" y="10" width="140" height="70" rx="8" fill="#fefce8" stroke="#fef08a" stroke-width="1.5"/>
-          <text x="160" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="#a16207">📋 orders</text>
-          <line x1="90" y1="38" x2="230" y2="38" stroke="#fef08a" stroke-width="1"/>
-          <text x="100" y="52" font-size="10" fill="#555">🔑 id · Snowflake</text>
-          <text x="100" y="66" font-size="10" fill="#0369a1">🔗 account_id, instrument_id</text>
-          <rect x="290" y="10" width="140" height="70" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
-          <text x="360" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">🤝 trades</text>
-          <line x1="290" y1="38" x2="430" y2="38" stroke="#bbf7d0" stroke-width="1"/>
-          <text x="300" y="52" font-size="10" fill="#0369a1">🔗 buy_order_id</text>
-          <text x="300" y="66" font-size="10" fill="#0369a1">🔗 sell_order_id</text>
-          <rect x="10" y="130" width="130" height="55" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
-          <text x="75" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#7e22ce">💰 accounts</text>
-          <line x1="10" y1="158" x2="140" y2="158" stroke="#e9d5ff" stroke-width="1"/>
-          <text x="20" y="172" font-size="10" fill="#555">🔑 id, cash_balance</text>
-          <rect x="190" y="130" width="130" height="55" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
-          <text x="255" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">📊 instruments</text>
-          <line x1="190" y1="158" x2="320" y2="158" stroke="#bfdbfe" stroke-width="1"/>
-          <text x="200" y="172" font-size="10" fill="#555">🔑 id (AAPL), tick_size</text>
-          <line x1="120" y1="80" x2="75" y2="130" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
-          <line x1="160" y1="80" x2="255" y2="130" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
-          <line x1="230" y1="45" x2="290" y2="45" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
-        </svg>
-      </div>` },
+
+      <div class="content-section">
+        <div class="content-label">The four tables, explained simply</div>
+
+        <table class="nfr-table" style="margin-bottom:20px;">
+          <tr>
+            <td><strong>📊 instruments</strong></td>
+            <td>The catalog of everything tradeable. AAPL, TSLA, NIFTY50, USD/INR. Each entry has a tick size (smallest price move — AAPL can't be priced at $152.003, only $152.00 or $152.01) and lot size (minimum quantity per order). This table rarely changes — maybe a few new entries per week.</td>
+          </tr>
+          <tr>
+            <td><strong>📋 orders</strong></td>
+            <td>Your Amazon orders page — but for the exchange. Every buy/sell request ever submitted by anyone, with its current status: open (waiting to match), filled (done), or cancelled. This is the paper trail. Even if an order never filled, it's recorded here so auditors can verify what traders tried to do.</td>
+          </tr>
+          <tr>
+            <td><strong>🤝 trades</strong></td>
+            <td>The executed deals ledger. One row per partial or full fill — it records <em>which buy order</em> matched <em>which sell order</em>, at what price, at what quantity, at exactly what nanosecond. This is what settlement runs on. The trades table is the money table.</td>
+          </tr>
+          <tr>
+            <td><strong>💰 accounts</strong></td>
+            <td>Each trader's wallet: how much cash they hold, how much margin is available (borrowed buying power). Updated atomically after each trade by the settlement service. The matching engine never reads this — only the risk engine checks it pre-trade, and the settlement service updates it post-trade.</td>
+          </tr>
+        </table>
+
+        <div class="content-label">Schema — the actual columns</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
+          <div class="db-node"><div class="db-node-header" style="background:#eff6ff;border-color:#bfdbfe;"><span class="db-node-icon">📊</span><span class="db-node-name">instruments</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>VARCHAR · PK (e.g. AAPL)</span></div><div class="db-row">name <span>VARCHAR</span></div><div class="db-row">lot_size <span>INT</span></div><div class="db-row">tick_size <span>DECIMAL</span></div></div></div>
+          <div class="db-node"><div class="db-node-header" style="background:#fefce8;border-color:#fef08a;"><span class="db-node-icon">📋</span><span class="db-node-name">orders</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>BIGINT · Snowflake PK</span></div><div class="db-row fk">🔗 account_id <span>FK → accounts</span></div><div class="db-row fk">🔗 instrument_id <span>FK → instruments</span></div><div class="db-row">side <span>ENUM (buy, sell)</span></div><div class="db-row">type <span>ENUM (market, limit)</span></div><div class="db-row">price <span>DECIMAL (nullable for market)</span></div><div class="db-row">qty <span>INT</span></div><div class="db-row">status <span>ENUM (open, filled, cancelled)</span></div></div></div>
+          <div class="db-node"><div class="db-node-header" style="background:#f0fdf4;border-color:#bbf7d0;"><span class="db-node-icon">🤝</span><span class="db-node-name">trades</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>BIGINT · PK</span></div><div class="db-row fk">🔗 buy_order_id <span>FK → orders</span></div><div class="db-row fk">🔗 sell_order_id <span>FK → orders</span></div><div class="db-row">price <span>DECIMAL</span></div><div class="db-row">qty <span>INT</span></div><div class="db-row">executed_at <span>TIMESTAMP (ns precision)</span></div></div></div>
+          <div class="db-node"><div class="db-node-header" style="background:#faf5ff;border-color:#e9d5ff;"><span class="db-node-icon">💰</span><span class="db-node-name">accounts</span></div><div class="db-node-body"><div class="db-row pk">🔑 id <span>UUID · PK</span></div><div class="db-row">cash_balance <span>DECIMAL</span></div><div class="db-row">margin_available <span>DECIMAL</span></div></div></div>
+        </div>
+
+        <div class="content-label">How they connect</div>
+        <div style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:10px;padding:20px;margin-bottom:20px;">
+          <svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:-apple-system,sans-serif;">
+            <defs><marker id="arrE" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#ccc"/></marker></defs>
+            <rect x="90" y="10" width="140" height="70" rx="8" fill="#fefce8" stroke="#fef08a" stroke-width="1.5"/>
+            <text x="160" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="#a16207">📋 orders</text>
+            <line x1="90" y1="38" x2="230" y2="38" stroke="#fef08a" stroke-width="1"/>
+            <text x="100" y="52" font-size="10" fill="#555">🔑 id · Snowflake</text>
+            <text x="100" y="66" font-size="10" fill="#0369a1">🔗 account_id, instrument_id</text>
+            <rect x="290" y="10" width="140" height="70" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+            <text x="360" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">🤝 trades</text>
+            <line x1="290" y1="38" x2="430" y2="38" stroke="#bbf7d0" stroke-width="1"/>
+            <text x="300" y="52" font-size="10" fill="#0369a1">🔗 buy_order_id</text>
+            <text x="300" y="66" font-size="10" fill="#0369a1">🔗 sell_order_id</text>
+            <rect x="10" y="130" width="130" height="55" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+            <text x="75" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#7e22ce">💰 accounts</text>
+            <line x1="10" y1="158" x2="140" y2="158" stroke="#e9d5ff" stroke-width="1"/>
+            <text x="20" y="172" font-size="10" fill="#555">🔑 id, cash_balance</text>
+            <rect x="190" y="130" width="130" height="55" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+            <text x="255" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">📊 instruments</text>
+            <line x1="190" y1="158" x2="320" y2="158" stroke="#bfdbfe" stroke-width="1"/>
+            <text x="200" y="172" font-size="10" fill="#555">🔑 id (AAPL), tick_size</text>
+            <line x1="120" y1="80" x2="75" y2="130" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
+            <line x1="160" y1="80" x2="255" y2="130" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
+            <line x1="230" y1="45" x2="290" y2="45" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
+          </svg>
+        </div>
+
+        <div class="insight-box">
+          Read it like this: one <strong>order</strong> belongs to one <strong>account</strong> and one <strong>instrument</strong>. One <strong>trade</strong> is born from exactly two orders — one buy, one sell. To reconstruct every trade in history, you only need these four tables. No external state required.
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: Why is there a separate "trades" table? Can't we just mark orders as "filled" and store the price there?</strong></td><td>Because one order can produce multiple trades — called partial fills. If you buy 1000 shares and match 3 different sellers, that's 3 trade records but 1 order. If you merged them, you'd lose which sellers were involved, at what price each fill happened, and in what sequence. Settlement, tax reporting, and audits all need each individual fill as a separate row.</td></tr>
+          <tr><td><strong>Q: Why Snowflake IDs for orders instead of auto-increment integers?</strong></td><td>Auto-increment needs a central counter — it becomes a bottleneck. Snowflake IDs are generated locally on each gateway server without coordination, yet they're globally unique and sortable by time. You can tell just by the ID number which order arrived first without querying a database. At 1M orders/sec, that matters.</td></tr>
+          <tr><td><strong>Q: Why does executed_at need nanosecond precision? Milliseconds aren't enough?</strong></td><td>At 1M+ orders/second, thousands of events happen within the same millisecond. For regulatory audit trails and dispute resolution ("who got matched first?"), you need nanosecond resolution. Stock exchanges synchronize server clocks with GPS/PTP to within 100ns — the same technology used in global navigation systems.</td></tr>
+        </table>
+      </div>
+    ` },
     { name: 'Deep Dive — Matching Engine', content: `
 
       <div class="content-section">
@@ -2863,17 +3075,104 @@ Step 2: next_ask = $152.80. Is $153.00 ≥ $152.80? YES → match
         <div class="insight-box" style="margin-top:12px;">Circuit breakers don't lose your order — they pause matching. All open orders remain in the order book exactly as they were. When trading resumes, the engine continues from where it stopped.</div>
       </div>
 
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: If the matching engine is single-threaded, what happens during the microsecond it's processing one order? All other orders are just waiting?</strong></td><td>Yes — but the wait is so short it doesn't matter. The ring buffer holds all incoming orders. Gateways write to it at any time without blocking each other. The engine reads them one by one, each in under 1 microsecond. At 6M orders/second, an order waits in the buffer for an average of ~160 nanoseconds. The queue never builds up under normal load.</td></tr>
+          <tr><td><strong>Q: What actually happens to my order if it only partially fills? Like I wanted 1000 shares but only 400 were available?</strong></td><td>For a limit order: the 400 shares execute immediately. The remaining 600 become a <em>resting order</em> — they stay in the order book and wait for a matching seller to arrive. You'll see the 600 as "open" in your brokerage app. For a market order: the 400 fill, and the remaining 600 continue walking up the ask side filling against the next available sellers until done. If the book runs out of sellers, the unfilled portion is cancelled.</td></tr>
+          <tr><td><strong>Q: Why does the matching engine emit to Kafka and not write directly to PostgreSQL?</strong></td><td>Writing to PostgreSQL takes 1–10ms per row (disk I/O, network, ACID guarantee). The engine processes an order in under 1 microsecond. Writing directly to Postgres would slow the engine by 1,000–10,000x. Kafka is in-memory, append-only, and returns in microseconds. PostgreSQL writes happen asynchronously — the settlement service consumes from Kafka and persists at its own pace. The engine never blocks.</td></tr>
+          <tr><td><strong>Q: How does the exchange guarantee no duplicate trades? What if the engine crashes mid-match?</strong></td><td>Every order is written to Kafka <em>before</em> it's placed in the ring buffer. If the engine crashes mid-match, it replays the Kafka log from the last committed offset — rebuilding the order book to its exact pre-crash state and re-processing all unconfirmed orders. The Kafka offset acts as a checkpoint. This is called a Write-Ahead Log pattern — the same technique PostgreSQL itself uses for crash recovery.</td></tr>
+        </table>
+      </div>
+
     ` },
     { name: 'Bottlenecks & Trade-offs', content: `
-      <ul class="req-list" style="gap:10px;">
-        <li><strong>⚡ Hot instruments (AAPL, TSLA)</strong><br><span style="color:#888;">Popular stocks get millions of orders/sec. Single matching engine thread may not keep up.</span><br><span style="color:#555;display:block;margin-top:4px;">Fix: One matching engine instance per instrument. AAPL gets its own dedicated CPU core + order book. Scales horizontally by instrument.</span></li>
-        <li><strong>💾 Matching engine failure</strong><br><span style="color:#888;">In-memory order book is lost on crash. All open orders disappear.</span><br><span style="color:#555;display:block;margin-top:4px;">Fix: All orders written to Kafka before processing. On restart, replay Kafka log from last checkpoint to rebuild order book state in &lt;1 second.</span></li>
-        <li><strong>📊 Market data fan-out</strong><br><span style="color:#888;">Every trade creates market data that must go to millions of subscribers (Bloomberg terminals, trading apps).</span><br><span style="color:#555;display:block;margin-top:4px;">Fix: Separate market data path from matching path. Kafka topic per instrument. Subscribers consume at their own pace. Matching engine never waits for market data delivery.</span></li>
-      </ul>
-      <table class="nfr-table" style="margin-top:16px;">
-        <tr><td>CP over AP</td><td>Unlike most web systems, a stock exchange never tolerates stale or inconsistent state. A split-brain where two matching engines both think they're primary = duplicate trades = financial disaster.</td></tr>
-        <tr><td>In-memory vs DB</td><td>In-memory order book: microsecond latency, requires replay on crash. DB-backed: seconds of latency, unacceptable for trading. Kafka WAL gives both speed and durability.</td></tr>
-      </table>` }
+
+      <div class="content-section">
+        <div class="content-label">What goes wrong — and why</div>
+        <div class="insight-box">
+          Most systems fail gradually. A stock exchange fails catastrophically — $1B+ can be lost in minutes when something breaks. These are the known failure modes, what causes them, and how real exchanges prevent them.
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">The three big breakdowns</div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
+
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:16px;">
+            <div style="font-size:13px;font-weight:700;color:#c2410c;margin-bottom:8px;">Hot instruments — AAPL and TSLA receive 100× the orders of an average stock</div>
+            <div style="font-size:12px;color:#555;margin-bottom:8px;">
+              During earnings announcements, meme stock events, or major news, a single stock can receive orders faster than its matching engine core can process. The ring buffer fills. Newer orders wait behind millions of earlier ones. Latency explodes from microseconds to seconds.
+            </div>
+            <div style="font-size:12px;background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:10px;">
+              <strong>Fix:</strong> One matching engine instance per instrument, each pinned to its own CPU core. AAPL has its own engine. TSLA has its own. This isn't just load balancing — each engine has a completely independent order book in L2 cache. They never share memory. Add more instrument shards without touching existing ones.
+            </div>
+          </div>
+
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;">
+            <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px;">Matching engine crash — in-memory order book is gone</div>
+            <div style="font-size:12px;color:#555;margin-bottom:8px;">
+              The order book lives entirely in RAM for speed. Power cut, hardware failure, kernel panic — the book is gone. Without crash recovery, every open order disappears. Traders have pending orders they can't see or cancel. Chaos.
+            </div>
+            <div style="font-size:12px;background:#fff;border:1px solid #fecaca;border-radius:6px;padding:10px;">
+              <strong>Fix:</strong> Every order is written to a Kafka topic <em>before</em> being added to the ring buffer. On restart, the engine replays the Kafka log from the last checkpoint, rebuilding the exact order book state in under 1 second. This is a Write-Ahead Log — the same crash-recovery pattern PostgreSQL uses, but over Kafka instead of disk.
+            </div>
+          </div>
+
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px;">
+            <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:8px;">Market data fan-out — millions of subscribers per trade event</div>
+            <div style="font-size:12px;color:#555;margin-bottom:8px;">
+              Every trade creates a price update that must reach every Bloomberg terminal, trading app, and algorithmic trader simultaneously. There are potentially millions of subscribers. If the matching engine waits for even one slow subscriber, it stalls.
+            </div>
+            <div style="font-size:12px;background:#fff;border:1px solid #bae6fd;border-radius:6px;padding:10px;">
+              <strong>Fix:</strong> Separate the market data path from the matching path. The engine writes one event to a Kafka topic. A dedicated market data publisher reads that topic and broadcasts to all subscribers in parallel. The engine never knows or cares who is listening. Slow subscribers just fall behind — they don't affect matching latency.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">The Knight Capital story — what happens when you skip safeguards</div>
+        <div class="insight-box">
+          On August 1, 2012, Knight Capital deployed a software update to their trading system. A bug caused an old, dormant algorithm (called "Power Peg") to activate on live markets. In 45 minutes, the algorithm placed millions of unintended orders — buying high and selling low, the opposite of what it should do.<br><br>
+          <strong>Result:</strong> Knight Capital lost $440 million in 45 minutes. The company was bankrupt by the end of the day and sold within weeks.<br><br>
+          The safeguards that would have prevented it: a circuit breaker on order volume per minute, a position limit check ("you're now long $3B in stocks you didn't intend to hold"), and a kill switch that could halt all orders from a given source. Most exchanges now mandate all three.
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">The fundamental design trade-offs</div>
+        <table class="nfr-table">
+          <tr>
+            <td><strong>CP over AP</strong></td>
+            <td>Unlike most web systems (which prefer availability), a stock exchange chooses consistency. A split-brain scenario where two matching engines both believe they're the primary = two engines both accepting and matching orders = duplicate trades = charging buyers twice = financial disaster. The exchange goes offline (unavailable) before it allows inconsistency.</td>
+          </tr>
+          <tr>
+            <td><strong>In-memory order book vs database</strong></td>
+            <td>In-memory: microsecond latency, but lost on crash. Database: millisecond latency (1,000× slower), unacceptable for matching. The answer is both: order book stays in memory for speed, Kafka acts as the write-ahead log for durability. You get speed <em>and</em> crash recovery without compromise.</td>
+          </tr>
+          <tr>
+            <td><strong>Horizontal scaling by instrument</strong></td>
+            <td>You can't shard the matching engine for one instrument across multiple servers — that would break price-time priority (two servers might match the same order simultaneously). Instead, each instrument has exactly one engine on exactly one server. Scale by adding more servers for more instruments, not by splitting one instrument across servers.</td>
+          </tr>
+          <tr>
+            <td><strong>Latency vs fairness</strong></td>
+            <td>Co-location services let high-frequency traders place their servers physically next to the exchange's matching engine — reducing network latency from ~10ms to ~50 microseconds. Some see this as unfair (buying speed). Exchanges permit it because HFTs also provide liquidity (they're often on the sell side, making it easier for retail traders to buy). Regulated co-location is a deliberate design choice, not an oversight.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Cross Q&amp;A</div>
+        <table class="nfr-table">
+          <tr><td><strong>Q: If each instrument has its own matching engine, how many servers does a real exchange need?</strong></td><td>NSE India trades about 2,000 stocks. NASDAQ trades about 3,500. If each gets one dedicated engine with a hot standby, that's 4,000–7,000 cores just for matching. In practice, less-active stocks share physical servers with process-level isolation — only the top 500 or so get dedicated hardware. But the logical design is still "one engine per instrument."</td></tr>
+          <tr><td><strong>Q: What happens to my order if the exchange has a circuit breaker halt? Is it safe?</strong></td><td>Yes. Your order stays in the order book exactly as it was — the engine pauses processing but doesn't flush or cancel anything. When the halt lifts, the engine resumes from the exact state it was in. Your order's position in the queue (its time priority) is preserved. You may actually <em>want</em> to cancel during a halt if you think prices will change — you have the full halt window to decide.</td></tr>
+          <tr><td><strong>Q: Can I run my own matching engine at home and practice?</strong></td><td>Yes — a basic matching engine is surprisingly simple to write. The core is just two sorted data structures (a max-heap for bids, a min-heap for asks) and a loop that checks if the top of each side crosses. You can build one in ~200 lines of Python or Go. The complexity is in making it fast (ring buffer, cache pinning, CPU affinity) and safe (WAL, risk checks, duplicate detection) — not in the matching logic itself.</td></tr>
+        </table>
+      </div>
+    ` }
   ]
 };
 
