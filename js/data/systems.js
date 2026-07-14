@@ -2595,21 +2595,275 @@ systems['stockexchange'] = {
         </svg>
       </div>` },
     { name: 'Deep Dive — Matching Engine', content: `
-      <div class="content-label">How orders are matched</div>
-      <ul class="req-list">
-        <li><strong>Order book structure</strong> — two sorted maps per instrument: Bids (buy orders, descending price) and Asks (sell orders, ascending price). Within each price level, FIFO queue of orders by arrival time.</li>
-        <li><strong>Market order</strong> — matches against best available price immediately. Walks the ask side until fully filled.</li>
-        <li><strong>Limit order</strong> — only matches if best ask ≤ limit price. Otherwise rests in the order book waiting.</li>
-        <li><strong>Matching condition</strong> — best_bid ≥ best_ask → match! Trade executed at ask price (the resting order price).</li>
-      </ul>
-      <div class="insight-box" style="margin-top:12px;">
-        <strong>Example:</strong><br>
-        Order book: Bids: [100, 99, 98]. Asks: [101, 102, 103]<br>
-        New market buy order arrives → matches against best ask (101) → trade at 101.<br>
-        New limit buy at 102 arrives → best ask is 101 ≤ 102 → immediate match at 101.
+
+      <div class="content-section">
+        <div class="content-label">What is a Matching Engine — and why does it exist?</div>
+        <div class="insight-box">
+          Without a matching engine, a stock exchange is just a bulletin board. Buyers post what they want to pay. Sellers post what they want to receive. Nothing happens automatically.<br><br>
+          The matching engine is the <strong>brain of the exchange</strong>. It is the single piece of software responsible for one job: given all outstanding buy orders and sell orders, find pairs that agree on price and create a trade between them — atomically, fairly, and in microseconds.<br><br>
+          Every exchange in the world — NYSE, NASDAQ, BSE, NSE, CME — runs one. Without it, markets cannot function.
+        </div>
       </div>
-      <div style="margin-top:16px;"><div class="content-label">Circuit breakers</div>
-      <div class="insight-box">If price moves &gt;10% in 5 minutes, the exchange automatically halts trading for that stock for 15 minutes. Implemented as a simple price monitor comparing current price to a rolling window — triggers a halt event that pauses the matching engine for that instrument.</div></div>` },
+
+      <div class="content-section">
+        <div class="content-label">The Problem It Solves — Price Discovery</div>
+        <table class="nfr-table">
+          <tr><td><strong>Problem 1: What is the fair price?</strong></td><td>Nobody knows the "real" price of a stock at any moment. The matching engine reveals it in real time — the price at which a willing buyer and a willing seller agree is, by definition, the market price. This is called <strong>price discovery</strong>.</td></tr>
+          <tr><td><strong>Problem 2: Fairness</strong></td><td>If 1,000 people all want to buy AAPL at the same price at the same moment, who gets it? The matching engine enforces <strong>price-time priority</strong>: best price first, earliest arrival first within the same price. No favouritism, no human judgement.</td></tr>
+          <tr><td><strong>Problem 3: Atomicity</strong></td><td>A trade must happen completely or not at all. You cannot debit the buyer's account and then crash before crediting the seller. The matching engine creates a single atomic trade record that downstream systems (settlement, clearing) consume.</td></tr>
+          <tr><td><strong>Problem 4: Speed at scale</strong></td><td>During market open (9:30 AM), 1M+ orders per second hit major exchanges. No human can process this. The matching engine does it in &lt;1 microsecond per order — faster than a camera shutter.</td></tr>
+        </table>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">The Order Book — The Matching Engine's Core Data Structure</div>
+        <div class="insight-box" style="margin-bottom:14px;">
+          Every instrument (AAPL, TSLA, BTC) has its own <strong>Order Book</strong> — two sorted lists maintained entirely in memory. All matching decisions are made by reading and writing this structure.
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;overflow:hidden;">
+            <div style="padding:10px 14px;border-bottom:1px solid #bbf7d0;font-size:12px;font-weight:700;color:#15803d;">📗 BID SIDE (Buy Orders)</div>
+            <div style="padding:0;">
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;gap:0;font-size:11px;font-weight:700;color:#888;padding:6px 14px;border-bottom:1px solid #f0f0f0;">
+                <span>PRICE</span><span>QTY</span><span>ORDERS</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;background:#dcfce7;">
+                <span style="font-weight:700;color:#15803d;">$152.00</span><span>500</span><span style="color:#888;">← best bid</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;border-top:1px solid #f0f0f0;">
+                <span style="font-weight:700;">$151.80</span><span>1,200</span><span style="color:#888;">3 orders</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;border-top:1px solid #f0f0f0;">
+                <span style="font-weight:700;">$151.50</span><span>800</span><span style="color:#888;">2 orders</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;border-top:1px solid #f0f0f0;color:#ccc;">
+                <span>$151.00</span><span>300</span><span></span>
+              </div>
+            </div>
+            <div style="padding:8px 14px;font-size:10px;color:#888;border-top:1px solid #bbf7d0;">Sorted descending — highest bid first</div>
+          </div>
+
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;overflow:hidden;">
+            <div style="padding:10px 14px;border-bottom:1px solid #fecaca;font-size:12px;font-weight:700;color:#dc2626;">📕 ASK SIDE (Sell Orders)</div>
+            <div style="padding:0;">
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;gap:0;font-size:11px;font-weight:700;color:#888;padding:6px 14px;border-bottom:1px solid #f0f0f0;">
+                <span>PRICE</span><span>QTY</span><span>ORDERS</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;background:#fee2e2;">
+                <span style="font-weight:700;color:#dc2626;">$152.50</span><span>400</span><span style="color:#888;">← best ask</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;border-top:1px solid #f0f0f0;">
+                <span style="font-weight:700;">$152.80</span><span>900</span><span style="color:#888;">2 orders</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;border-top:1px solid #f0f0f0;">
+                <span style="font-weight:700;">$153.00</span><span>600</span><span style="color:#888;">1 order</span>
+              </div>
+              <div style="display:grid;grid-template-columns:60px 60px 1fr;padding:5px 14px;font-size:11.5px;border-top:1px solid #f0f0f0;color:#ccc;">
+                <span>$153.50</span><span>200</span><span></span>
+              </div>
+            </div>
+            <div style="padding:8px 14px;font-size:10px;color:#888;border-top:1px solid #fecaca;">Sorted ascending — lowest ask first</div>
+          </div>
+        </div>
+
+        <div class="insight-box">
+          <strong>Spread = Best Ask − Best Bid = $152.50 − $152.00 = $0.50</strong><br>
+          The spread is the cost of immediate execution. A smaller spread = more liquid market. The matching engine's job is to find pairs where best_bid ≥ best_ask (a crossable spread) — when that happens, a trade occurs.<br><br>
+          Right now these orders <em>don't</em> cross ($152.00 &lt; $152.50), so both sides wait.
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Order Types — What the Engine Accepts</div>
+        <table class="nfr-table">
+          <tr>
+            <td><strong>Market Order</strong></td>
+            <td>"Buy 100 shares at whatever price is available right now." Guaranteed to execute immediately. No price specified — engine walks the ask side from best price upward until the order is fully filled. Risk: price may be worse than expected in thin markets (<em>slippage</em>).</td>
+          </tr>
+          <tr>
+            <td><strong>Limit Order</strong></td>
+            <td>"Buy 100 shares, but only at $152.00 or better." Price-capped. If best ask &gt; $152.00, order rests in the book until a seller comes down to that price. Guaranteed price — not guaranteed execution. Most common order type.</td>
+          </tr>
+          <tr>
+            <td><strong>Stop Order</strong></td>
+            <td>"Trigger a market order only when price hits $150.00." Used for stop-loss. The engine monitors price. When the trigger price is crossed, it converts to a market order and executes. The matching engine keeps a separate <em>stop book</em> for these.</td>
+          </tr>
+          <tr>
+            <td><strong>IOC — Immediate or Cancel</strong></td>
+            <td>"Fill whatever you can right now, cancel the rest." If only 60 of 100 shares can be filled immediately, 60 fill and 40 are cancelled. No resting in the book. Used by algorithmic traders who don't want market impact from a pending order.</td>
+          </tr>
+          <tr>
+            <td><strong>FOK — Fill or Kill</strong></td>
+            <td>"Fill the entire 100 shares immediately or cancel everything." All-or-nothing. If the full quantity isn't available at the specified price right now, the entire order is rejected. Used for large institutional orders.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">The Matching Algorithm — Step by Step</div>
+        <div style="display:flex;flex-direction:column;gap:0;margin-bottom:16px;">
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-radius:10px 10px 0 0;border-bottom:none;">
+            <div style="width:28px;height:28px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">1</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:4px;">Order arrives at the gateway</div>
+              <div style="font-size:12px;color:#555;">Order Gateway validates: authenticated user, sufficient balance, instrument exists, price in valid tick increments. Risk engine checks position limits. If any check fails, order is rejected immediately.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-left:1px solid #e0e7ff;border-right:1px solid #e0e7ff;">
+            <div style="width:28px;height:28px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">2</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:4px;">Assigned a Snowflake ID + timestamp</div>
+              <div style="font-size:12px;color:#555;">Every order gets a globally unique monotonic ID and a nanosecond-precision timestamp. This timestamp determines time priority — the tiebreaker when two orders have the same price. Clocks are synchronized with GPS/PTP to nanosecond accuracy.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-left:1px solid #e0e7ff;border-right:1px solid #e0e7ff;">
+            <div style="width:28px;height:28px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">3</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:4px;">Published to the ring buffer</div>
+              <div style="font-size:12px;color:#555;">The validated order is placed into a lock-free ring buffer (LMAX Disruptor pattern). The matching engine reads from this buffer one order at a time — strictly sequential. No two orders are processed simultaneously. This eliminates all race conditions without a single lock.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-left:1px solid #e0e7ff;border-right:1px solid #e0e7ff;">
+            <div style="width:28px;height:28px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">4</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:4px;">Match attempt against the opposite side</div>
+              <div style="font-size:12px;color:#555;">
+                Buy order arrives → look at the best ask.<br>
+                <strong>Condition to match:</strong> order.price ≥ best_ask.price (for buy) — the buyer is willing to pay at least what the cheapest seller wants.<br>
+                If yes → match. Trade executes at the <em>resting order's price</em> (the ask price). The aggressor (new order) gets price improvement if available.
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f8faff;border:1px solid #e0e7ff;border-left:1px solid #e0e7ff;border-right:1px solid #e0e7ff;">
+            <div style="width:28px;height:28px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">5</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:4px;">Partial fills — when sizes don't align</div>
+              <div style="font-size:12px;color:#555;">
+                Buyer wants 1,000 shares. Best ask has only 400 shares available.<br>
+                → 400 shares match at ask price. Buyer still needs 600.<br>
+                → Move to next best ask level. Match 400 more. Buyer needs 200.<br>
+                → Continue until the order is fully filled or no more matching orders exist.<br>
+                If unfilled quantity remains and order is a limit order → it rests in the book. If market order → any unfilled quantity is cancelled.
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0 0 10px 10px;">
+            <div style="width:28px;height:28px;background:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">6</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:4px;">Trade event published — async from here</div>
+              <div style="font-size:12px;color:#555;">The matching engine emits a Trade event: {buy_order_id, sell_order_id, price, qty, timestamp}. This goes to Kafka. From here, everything is async: settlement service updates balances, PostgreSQL persists the record, market data publisher broadcasts the new price. The engine never waits for any of this — it's already processing the next order.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Worked Example — Full Matching Walkthrough</div>
+        <div style="background:#1e1e2e;color:#e2e8f0;font-family:'SF Mono','Fira Code',monospace;font-size:12px;padding:18px;border-radius:10px;line-height:1.9;overflow-x:auto;">
+<span style="color:#94a3b8;">// AAPL order book state BEFORE the incoming order</span>
+ASK side: $152.50 × 400 shares  (1 sell order, arrived at 09:30:00.000)
+          $152.80 × 900 shares  (2 sell orders)
+
+BID side: $152.00 × 500 shares  (2 buy orders)
+          $151.80 × 1200 shares
+
+<span style="color:#94a3b8;">// Incoming order: BUY 1,000 shares @ LIMIT $153.00</span>
+<span style="color:#94a3b8;">// Buyer is willing to pay up to $153.00</span>
+
+Step 1: best_ask = $152.50. Is $153.00 ≥ $152.50? YES → match
+        Trade 1: 400 shares @ $152.50  (full ask level consumed)
+        Remaining: 600 shares still needed
+
+Step 2: next_ask = $152.80. Is $153.00 ≥ $152.80? YES → match
+        Trade 2a: 500 shares @ $152.80  (first sell order, FIFO)
+        Remaining: 100 shares still needed
+        Trade 2b: 100 shares @ $152.80  (partial fill of second sell order)
+        Remaining: 0 shares ← FULLY FILLED
+
+<span style="color:#94a3b8;">// Result: 3 trade records created, buyer paid avg $152.65</span>
+<span style="color:#94a3b8;">// Book now shows second sell order reduced from 400 to 300 shares</span>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Why Single-Threaded? The LMAX Disruptor Architecture</div>
+        <div class="insight-box" style="margin-bottom:14px;">
+          The most counter-intuitive decision in exchange design: <strong>one CPU core, no parallelism, no locks</strong>. This is faster than a multi-threaded approach. Here is why.
+        </div>
+        <table class="nfr-table">
+          <tr>
+            <td><strong>Lock contention kills throughput</strong></td>
+            <td>With multiple threads, every access to the order book requires a mutex lock. At 1M orders/sec, threads spend more time waiting for locks than doing work. Measured on real hardware: a lock acquisition takes ~100ns — the same time as processing an entire order.</td>
+          </tr>
+          <tr>
+            <td><strong>Context switching costs microseconds</strong></td>
+            <td>The OS scheduler switching between threads takes 1–10μs. For a matching engine targeting &lt;1μs latency, this is unacceptable. A pinned single thread that never gets preempted stays in L1 cache — orders are processed at cache speed.</td>
+          </tr>
+          <tr>
+            <td><strong>Ring buffer replaces the queue</strong></td>
+            <td>The LMAX Disruptor is a fixed-size ring buffer pre-allocated in memory. Producers (order gateways) write to it. The engine reads from it. No malloc, no GC, no locks — just sequential memory writes and reads. CPUs are optimised for this: hardware prefetcher loads the next cache line before it's needed.</td>
+          </tr>
+          <tr>
+            <td><strong>Throughput numbers</strong></td>
+            <td>LMAX Exchange processes 6M orders/sec on a single thread. The same workload on a multi-threaded design with locks achieves ~600K/sec. The single-threaded design is 10× faster despite using one core instead of many.</td>
+          </tr>
+        </table>
+        <div style="margin-top:14px;background:#f8f8f8;border:1px solid #e8e8e8;border-radius:10px;padding:18px;">
+          <svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:-apple-system,sans-serif;">
+            <rect x="10" y="10" width="100" height="40" rx="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+            <text x="60" y="28" text-anchor="middle" font-size="10" font-weight="700" fill="#1d4ed8">Order Gateway 1</text>
+            <text x="60" y="42" text-anchor="middle" font-size="9" fill="#555">validates + writes</text>
+            <rect x="10" y="70" width="100" height="40" rx="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+            <text x="60" y="88" text-anchor="middle" font-size="10" font-weight="700" fill="#1d4ed8">Order Gateway 2</text>
+            <text x="60" y="102" text-anchor="middle" font-size="9" fill="#555">validates + writes</text>
+            <rect x="155" y="20" width="170" height="80" rx="8" fill="#fefce8" stroke="#fef08a" stroke-width="2"/>
+            <text x="240" y="45" text-anchor="middle" font-size="11" font-weight="700" fill="#a16207">Ring Buffer</text>
+            <text x="240" y="60" text-anchor="middle" font-size="9" fill="#888">lock-free, pre-allocated</text>
+            <text x="240" y="78" text-anchor="middle" font-size="9" fill="#555">[ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ]...</text>
+            <text x="240" y="92" text-anchor="middle" font-size="9" fill="#888">2^20 slots, ~1MB total</text>
+            <line x1="110" y1="30" x2="155" y2="50" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
+            <line x1="110" y1="90" x2="155" y2="80" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
+            <rect x="380" y="20" width="150" height="80" rx="8" fill="#fee2e2" stroke="#fca5a5" stroke-width="2"/>
+            <text x="455" y="45" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">Matching Engine</text>
+            <text x="455" y="60" text-anchor="middle" font-size="9" fill="#888">single thread, pinned core</text>
+            <text x="455" y="76" text-anchor="middle" font-size="9" fill="#555">reads one order at a time</text>
+            <text x="455" y="90" text-anchor="middle" font-size="9" fill="#888">&lt; 1μs per order</text>
+            <line x1="325" y1="60" x2="380" y2="60" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrE)"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Pre-Trade Risk Checks — What Happens Before Matching</div>
+        <div class="insight-box" style="margin-bottom:12px;">The matching engine itself does no risk checks — it would add latency. Risk is enforced by a dedicated Risk Engine that sits <em>before</em> the ring buffer. Only validated orders enter the matching pipeline.</div>
+        <table class="nfr-table">
+          <tr><td><strong>Balance check</strong></td><td>Buy 1000 shares @ $152? You need $152,000. The risk engine checks your cash balance + margin before the order is accepted. If insufficient, reject immediately.</td></tr>
+          <tr><td><strong>Position limits</strong></td><td>Regulators cap how much of a single stock one entity can hold. The risk engine checks current position + pending orders against this limit.</td></tr>
+          <tr><td><strong>Price reasonableness</strong></td><td>Limit order priced 20% away from last trade? Probably a fat-finger error. The engine rejects orders outside a reasonable band to prevent accidental market crashes.</td></tr>
+          <tr><td><strong>Duplicate order detection</strong></td><td>Network retries can cause the same order to arrive twice. The risk engine checks the client's order ID for duplicates within a short window and rejects repeats.</td></tr>
+        </table>
+      </div>
+
+      <div class="content-section">
+        <div class="content-label">Circuit Breakers — When the Engine Pauses Itself</div>
+        <table class="nfr-table">
+          <tr><td><strong>Level 1 (−7%)</strong></td><td>Market-wide halt for 15 minutes. Triggered when S&P 500 drops 7% from previous close. Orders queue but do not match. Example: March 2020 COVID crash triggered this 4 times in two weeks.</td></tr>
+          <tr><td><strong>Level 2 (−13%)</strong></td><td>Another 15-minute halt if decline continues to 13% after market resumes.</td></tr>
+          <tr><td><strong>Level 3 (−20%)</strong></td><td>Trading halted for the rest of the day. The exchange closes early.</td></tr>
+          <tr><td><strong>Individual stock halt</strong></td><td>If a single stock moves &gt;10% in 5 minutes, that stock's matching engine pauses for 5 minutes. Implemented as a rolling price window per instrument. The matching engine checks this after every trade.</td></tr>
+        </table>
+        <div class="insight-box" style="margin-top:12px;">Circuit breakers don't lose your order — they pause matching. All open orders remain in the order book exactly as they were. When trading resumes, the engine continues from where it stopped.</div>
+      </div>
+
+    ` },
     { name: 'Bottlenecks & Trade-offs', content: `
       <ul class="req-list" style="gap:10px;">
         <li><strong>⚡ Hot instruments (AAPL, TSLA)</strong><br><span style="color:#888;">Popular stocks get millions of orders/sec. Single matching engine thread may not keep up.</span><br><span style="color:#555;display:block;margin-top:4px;">Fix: One matching engine instance per instrument. AAPL gets its own dedicated CPU core + order book. Scales horizontally by instrument.</span></li>
